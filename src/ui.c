@@ -26,6 +26,7 @@ void ui_state_init(UiState* state)
 {
     state->mode = UI_MODE_NORMAL;
     state->log_scroll_offset = 0;
+    state->pending_action = (Action)0;
     memset(&state->number_input, 0, sizeof(state->number_input));
 }
 
@@ -97,12 +98,13 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     attroff(COLOR_PAIR(color));
 
     mvprintw(3, 2, "Ale: %d mugs", b->ale.amount);
-    mvprintw(4, 2, "Wine: %d glasses", b->wine.amount);
-    mvprintw(5, 2, "Price: $%.2f", b->price);
+    mvprintw(4, 2, "Ale Price: $%.2f", b->ale_price);
+    mvprintw(5, 2, "Wine: %d glasses", b->wine.amount);
+    mvprintw(6, 2, "Wine Price: $%.2f", b->wine_price);
 
     color = (b->reputation < 0.3f) ? COLOR_YELLOW : COLOR_NORMAL;
     attron(COLOR_PAIR(color));
-    mvprintw(6, 2, "Reputation: %.2f", b->reputation);
+    mvprintw(7, 2, "Reputation: %.2f", b->reputation);
     attroff(COLOR_PAIR(color));
 
     mvprintw(8, 2, "Quality (actual): %.2f", b->quality_actual);
@@ -127,13 +129,14 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(4, right_start + 2, "3 - Talk to townsfolk");
     mvprintw(5, right_start + 2, "4 - Check ale quality");
     mvprintw(6, right_start + 2, "5 - Advertise");
-    mvprintw(7, right_start + 2, "6 - Adjust price");
-    mvprintw(8, right_start + 2, "7 - Clean pathway");
-    mvprintw(9, right_start + 2, "8 - Buy ale stock");
-    mvprintw(10, right_start + 2, "   (%.2f per mug)", b->supplier->price_per_ale);
-    mvprintw(11, right_start + 2, "9 - Buy wine stock");
-
-    mvprintw(12, right_start + 2, "Q - Quit game");
+    mvprintw(7, right_start + 2, "6 - Clean pathway");
+    mvprintw(8, right_start + 2, "7 - Buy ale stock");
+    mvprintw(9, right_start + 2, "   (%.2f per mug)", b->supplier->price_per_ale);
+    mvprintw(10, right_start + 2, "8 - Buy wine stock");
+    mvprintw(11, right_start + 2, "   (%.2f per glass)", b->supplier->price_per_wine);
+    mvprintw(12, right_start + 2, "W - Adjust ale price");
+    mvprintw(13, right_start + 2, "E - Adjust ale price");
+    mvprintw(14, right_start + 2, "Q - Quit game");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
@@ -274,10 +277,150 @@ Action read_action(int ch)
         return (Action)-1; /* Signal to quit */
     }
 
-    if (ch >= '1' && ch <= '9')
+    if (ch >= '1' && ch <= '8')
     {
         return (Action)(ch - '1');
     }
+    if (ch == 'w')
+    {
+        return(Action)(ACT_ADJUST_ALE_PRICE);
+    }
+    if (ch == 'e')
+    {
+        return(Action)(ACT_ADJUST_WINE_PRICE);
+    }
 
     return (Action)-2; /* Invalid input */
+}
+
+/* Process a confirmed action with its parameter */
+void ui_process_action(UiState* ui_state, Tavern* b, World* w)
+{
+    if (ui_state->number_input.is_confirmed == 0)
+        return;
+
+    int input_value = ui_state->number_input.result;
+    int was_cancelled = (ui_state->number_input.is_confirmed == -1);
+
+    if (!was_cancelled) {
+        switch (ui_state->pending_action) {
+            case ACT_ADJUST_ALE_PRICE:
+            {
+                b->ale_price = CLAMP((float)input_value / 100.0f, 0.1f, 50.0f);
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Price adjusted to $%.2f", b->ale_price);
+                log_message(&w->log, buf, LOG_INFO);
+                break;
+            }
+            case ACT_ADJUST_WINE_PRICE:
+            {
+                b->wine_price = CLAMP((float)input_value / 100.0f, 0.1f, 50.0f);
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Price adjusted to $%.2f", b->wine_price);
+                log_message(&w->log, buf, LOG_INFO);
+                break;
+            }
+            case ACT_ADVERTISE:
+            {
+                apply_action(b, ACT_ADVERTISE, w, input_value);
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Advertised with budget $%d", input_value);
+                log_message(&w->log, buf, LOG_INFO);
+                break;
+            }
+
+            case ACT_BUY_ALE:
+            {
+                float cost = input_value * b->supplier->price_per_ale;
+
+                if (b->money < cost) {
+                    int affordable = (int)(b->money / b->supplier->price_per_ale);
+                    if (affordable <= 0) {
+                        log_message(&w->log, "Cannot afford any ale.", LOG_INFO);
+                    }
+                    else {
+                        b->money -= affordable * b->supplier->price_per_ale;
+                        b->ale.amount += affordable;
+                        b->total_inventory = b->ale.amount + b->wine.amount;
+
+                        char buf[128];
+                        snprintf(buf, sizeof(buf), "Bought %d mugs", affordable);
+                        log_message(&w->log, buf, LOG_INFO);
+                    }
+                }
+                else {
+                    b->money -= cost;
+                    b->ale.amount += input_value;
+                    b->total_inventory = b->ale.amount + b->wine.amount;
+
+                    char buf[128];
+                    snprintf(buf, sizeof(buf),
+                             "Bought %d mugs for $%.2f",
+                             input_value, cost);
+                    log_message(&w->log, buf, LOG_INFO);
+                }
+                break;
+            }
+
+            case ACT_BUY_WINE:
+            {
+                float cost = input_value * b->supplier->price_per_wine;
+
+                if (b->money < cost) {
+                    int affordable = (int)(b->money / b->supplier->price_per_wine);
+                    if (affordable <= 0) {
+                        log_message(&w->log, "Cannot afford any wine.", LOG_INFO);
+                    }
+                    else {
+                        b->money -= affordable * b->supplier->price_per_wine;
+                        b->wine.amount += affordable;
+                        b->total_inventory = b->ale.amount + b->wine.amount;
+
+                        char buf[128];
+                        snprintf(buf, sizeof(buf), "Bought %d glasses", affordable);
+                        log_message(&w->log, buf, LOG_INFO);
+                    }
+                }
+                else {
+                    b->money -= cost;
+                    b->wine.amount += input_value;
+                    b->total_inventory = b->ale.amount + b->wine.amount;
+
+                    char buf[128];
+                    snprintf(buf, sizeof(buf),
+                             "Bought %d glasses for $%.2f",
+                             input_value, cost);
+                    log_message(&w->log, buf, LOG_INFO);
+                }
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+    else {
+        switch (ui_state->pending_action) {
+            case ACT_ADJUST_ALE_PRICE:
+                log_message(&w->log, "Price adjustment cancelled.", LOG_INFO);
+                break;
+            case ACT_ADJUST_WINE_PRICE:
+                log_message(&w->log, "Price adjustment cancelled.", LOG_INFO);
+                break;
+            case ACT_ADVERTISE:
+                log_message(&w->log, "Advertising cancelled.", LOG_INFO);
+                break;
+            case ACT_BUY_ALE:
+                log_message(&w->log, "Stock purchase cancelled.", LOG_INFO);
+                break;
+            case ACT_BUY_WINE:
+                log_message(&w->log, "Stock purchase cancelled.", LOG_INFO);
+                break;
+            default:
+                break;
+        }
+    }
+
+    ui_state->number_input.is_confirmed = 0;
+    ui_state->pending_action = (Action)0;
 }

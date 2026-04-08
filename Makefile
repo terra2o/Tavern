@@ -25,7 +25,8 @@ SRC := \
 
 OBJ := $(SRC:.c=.o)
 
-TARGET := tavern
+BIN_DIR = bin
+TARGET = $(BIN_DIR)/tavern
 
 all: debug
 
@@ -37,8 +38,11 @@ release: CFLAGS := $(STD) $(WARNINGS) $(REL_FLAGS)
 release: SAN    := $(REL_SAN)
 release: $(TARGET)
 
-$(TARGET): $(OBJ)
+$(TARGET): | $(BIN_DIR) $(OBJ)
 	$(CC) $(CFLAGS) $(SAN) $(OBJ) -o $@ $(LIBS)
+
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(SAN) $(INCLUDE) -c $< -o $@

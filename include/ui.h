@@ -25,6 +25,7 @@ typedef struct {
     UiMode mode;
     int log_scroll_offset;
     NumberInputState number_input;
+    Action pending_action;
 } UiState;
 
 /* Initialize ncurses color pairs */
@@ -46,6 +47,9 @@ void ui_handle_input(int ch, UiState* ui_state, World* w);
 /* Start number input mode */
 void ui_start_number_input(UiState* ui_state, const char* prompt, 
                            int min_val, int max_val);
+
+/* Process a confirmed action with its parameter */
+void ui_process_action(UiState* ui_state, Tavern* b, World* w);
 
 /* Read an action key press (1-9 or Q) - only called in NORMAL mode */
 Action read_action(int ch);

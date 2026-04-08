@@ -20,7 +20,8 @@ int save_game(const char* path,
 
     fprintf(f, "[tavern]\n");
     fprintf(f, "money=%.2f\n", b->money);
-    fprintf(f, "price=%.2f\n", b->price);
+    fprintf(f, "ale_price=%.2f\n", b->ale_price);
+    fprintf(f, "wine_price=%.2f\n", b->wine_price);
     fprintf(f, "ale=%d\n", b->ale.amount);
     fprintf(f, "wine=%d\n", b->wine.amount);
     fprintf(f, "quality_actual=%.3f\n", b->quality_actual);
@@ -32,6 +33,7 @@ int save_game(const char* path,
 
     fprintf(f, "[merchant]\n");
     fprintf(f, "price_per_ale=%.3f\n", m->price_per_ale);
+    fprintf(f, "price_per_wine=%.3f\n", m->price_per_wine);
     fprintf(f, "quality=%.3f\n", m->quality);
     fprintf(f, "instability=%.3f\n\n", m->instability);
 
@@ -98,7 +100,8 @@ int load_game(const char* path,
 
             case TAVERN:
                 sscanf(line, "money=%f", &b->money);
-                sscanf(line, "price=%f", &b->price);
+                sscanf(line, "ale_price=%f", &b->ale_price);
+                sscanf(line, "wine_price=%f", &b->wine_price);
                 sscanf(line, "ale=%d", &b->ale.amount);
                 sscanf(line, "wine=%d", &b->wine.amount);
                 sscanf(line, "quality_actual=%f", &b->quality_actual);
@@ -111,6 +114,7 @@ int load_game(const char* path,
 
             case MERCHANT:
                 sscanf(line, "price_per_ale=%f", &m->price_per_ale);
+                sscanf(line, "price_per_wine=%f", &m->price_per_wine);
                 sscanf(line, "quality=%f", &m->quality);
                 sscanf(line, "instability=%f", &m->instability);
                 break;

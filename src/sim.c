@@ -34,13 +34,23 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
 			break;
 
 		case ACT_BUY_ALE:
-			break;
+		b->ale.amount += amount;
+		b->money -= amount * b->supplier->price_per_ale;
+		b->total_inventory = b->ale.amount + b->wine.amount;
+		break;
 		
 
 		case ACT_BUY_WINE:
+			b->wine.amount += amount;
+			b->money -= amount * b->supplier->price_per_wine;
+			b->total_inventory = b->ale.amount + b->wine.amount;
 			break;
 
-		case ACT_ADJUST_PRICE:
+		case ACT_ADJUST_ALE_PRICE:
+			/* handled outside apply_action */
+			break;
+
+		case ACT_ADJUST_WINE_PRICE:
 			/* handled outside apply_action */
 			break;
 		
@@ -68,10 +78,16 @@ int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 	DayResult day = market_simulate(b);
 
 	// Consistency punishes wild price changes
-	static float last_price = 1.0f;
-	float price_change = fabsf(b->price - last_price);
-	b->consistency -= price_change * 0.5f;
-	last_price = b->price;
+	static float ale_last_price = 1.0f;
+	float ale_price_change = fabsf(b->ale_price - ale_last_price);
+	b->consistency -= ale_price_change * 0.5f;
+	ale_last_price = b->ale_price;
+
+
+	static float wine_last_price = 1.0f;
+	float wine_price_change = fabsf(b->wine_price - wine_last_price);
+	b->consistency -= wine_price_change * 0.5f;
+	wine_last_price = b->wine_price;
 
 	b->quality_perceived = CLAMP(b->quality_perceived, 0, 1);
 	b->rumor = CLAMP(b->rumor, 0, 1);
@@ -94,6 +110,7 @@ int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 	// that just store its value locally
 	w->day++;
 
-	return day.ale_sales;
-	return day.wine_sales;
+	// return day.ale_sales;
+	// return day.wine_sales;
+    return day.revenue;
 }

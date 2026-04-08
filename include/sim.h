@@ -21,7 +21,8 @@ typedef struct Inventory {
 
 typedef struct Tavern{
     float money;
-    float price;
+    float ale_price;
+    float wine_price;
 
     int total_inventory;
     Inventory ale;
@@ -47,7 +48,8 @@ typedef struct {
     int customers;
     int ale_sales;
     int wine_sales;
-    int demand;
+    int demand_ale;
+    int demand_wine;
     float revenue;
 } DayResult;
 
@@ -57,10 +59,11 @@ typedef enum {
 	ACT_TALK,
 	ACT_CHECK_QUALITY,
 	ACT_ADVERTISE,
-	ACT_ADJUST_PRICE,
     ACT_CLEAN_PATHWAY,
 	ACT_BUY_ALE,
-    ACT_BUY_WINE
+    ACT_BUY_WINE,
+	ACT_ADJUST_ALE_PRICE,
+    ACT_ADJUST_WINE_PRICE,
 } Action;
 
 /* Compute reputation from quality, rumor, consistency, handsomeness */
