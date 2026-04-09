@@ -78,9 +78,10 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     b.handsomeness = 0.6f;
     b.reputation = 0.5f;
     b.supplier = &m;
+	b.last_pathway_clean_day = 0;
 
     p.pay_period = 30;
-    p.next_payment_day = p.pay_period;
+    p.next_payment_day = w.day + p.pay_period;
     p.rent_amount = 1500;
 
     /* Immediately create baseline save */
