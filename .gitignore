@@ -32,6 +32,7 @@ tavernsavefile.txt
 *.dylib
 
 # Executables
+/bin
 *.exe
 *.out
 *.app
