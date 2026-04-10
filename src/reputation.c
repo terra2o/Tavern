@@ -3,6 +3,8 @@
 #include "sim.h"
 #include "sim_random.h"
 
+// TODO: reputation gets stuck when it's 0, fix that.
+
 void reputation_tick(Tavern* b, int sales_today) {
     // Inventory affects rumor
     if (b->total_inventory == 0)
