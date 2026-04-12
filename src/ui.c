@@ -127,7 +127,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(2, right_start + 2, "1 - Skin care");
     mvprintw(3, right_start + 2, "2 - Clean shop");
     mvprintw(4, right_start + 2, "3 - Talk to townsfolk");
-    mvprintw(5, right_start + 2, "4 - Check ale quality");
+    mvprintw(5, right_start + 2, "4 - Check drink quality");
     mvprintw(6, right_start + 2, "5 - Advertise");
     mvprintw(7, right_start + 2, "6 - Clean pathway");
     mvprintw(8, right_start + 2, "7 - Buy ale stock");

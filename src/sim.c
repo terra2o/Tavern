@@ -34,10 +34,10 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
 			break;
 
 		case ACT_BUY_ALE:
-		b->ale.amount += amount;
-		b->money -= amount * b->supplier->price_per_ale;
-		b->total_inventory = b->ale.amount + b->wine.amount;
-		break;
+            b->ale.amount += amount;
+            b->money -= amount * b->supplier->price_per_ale;
+            b->total_inventory = b->ale.amount + b->wine.amount;
+            break;
 		
 
 		case ACT_BUY_WINE:
