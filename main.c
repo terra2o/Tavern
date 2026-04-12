@@ -18,7 +18,7 @@
 #include "include/pathway.h"
 #include "include/save.h"
 
-#define GAME_VERSION "0.3.0"
+#define GAME_VERSION "0.5.0"
 
 int main(void) {
 	srand(time(NULL));
@@ -102,7 +102,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 	curs_set(0); /* Hide cursor */
 
 	int game_running = 1;
-	log_message(&w.log, "Tavern - version: 0.3.0", LOG_IMPORTANT);
+	log_message(&w.log, "Tavern - version: 0.5.0", LOG_IMPORTANT);
 	log_message(&w.log, "Welcome! Press a key to start the best tavern simulation ever...", LOG_IMPORTANT);
 
 	/* UI state for non-blocking input */
