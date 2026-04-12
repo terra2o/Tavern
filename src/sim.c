@@ -60,16 +60,19 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
 	}
 }
 
-void process_payment(PeriodicPayment* p, Tavern* b, int current_day) {
+void process_payment(World* w, PeriodicPayment* p, Tavern* b, int current_day) {
 	if (current_day >= p->next_payment_day) {
 		b->money -= p->rent_amount;
 		p->next_payment_day += p->pay_period;
+        char buf[256];
+        snprintf(buf, sizeof(buf), "Paid rent: %.2f", p->rent_amount);
+        log_message(&w->log, buf, LOG_IMPORTANT);
 	}
 }
 
 int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 	// Rent Logic
-	process_payment(p, b, w->day);
+	process_payment(w, p, b, w->day);
 
 	update_merchant(b->supplier);
 	

@@ -72,7 +72,7 @@ float compute_reputation(Tavern* b);
 /* Apply an action to the tavern state */
 void apply_action(Tavern* b, Action a, World* w, int amount);
 
-void process_payment(PeriodicPayment* p, Tavern* b, int current_day);
+void process_payment(World* w, PeriodicPayment* p, Tavern* b, int current_day);
 
 /* Simulate one day: sales, inventory, money, reputation dynamics */
 int simulate_day(Tavern* b, World* w, PeriodicPayment* p);

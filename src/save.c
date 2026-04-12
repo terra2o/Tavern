@@ -40,7 +40,7 @@ int save_game(const char* path,
     fprintf(f, "[payment]\n");
     fprintf(f, "pay_period=%d\n", p->pay_period);
     fprintf(f, "next_payment_day=%d\n", p->next_payment_day);
-    fprintf(f, "rent_amount=%d\n", p->rent_amount);
+    fprintf(f, "rent_amount=%f\n", p->rent_amount);
 
     fclose(f);
     return 1;
@@ -122,7 +122,7 @@ int load_game(const char* path,
             case PAYMENT:
                 sscanf(line, "pay_period=%d", &p->pay_period);
                 sscanf(line, "next_payment_day=%d", &p->next_payment_day);
-                sscanf(line, "rent_amount=%d", &p->rent_amount);
+                sscanf(line, "rent_amount=%f", &p->rent_amount);
                 break;
 
             default:

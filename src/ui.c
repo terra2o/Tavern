@@ -135,7 +135,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(10, right_start + 2, "8 - Buy wine stock");
     mvprintw(11, right_start + 2, "   (%.2f per glass)", b->supplier->price_per_wine);
     mvprintw(12, right_start + 2, "W - Adjust ale price");
-    mvprintw(13, right_start + 2, "E - Adjust ale price");
+    mvprintw(13, right_start + 2, "E - Adjust wine price");
     mvprintw(14, right_start + 2, "Q - Quit game");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */

@@ -114,9 +114,9 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 		/* PATHWAY MECHANIC*/
 		people_fall_because_pathway_dirty(&w, &b, w.day, r.customers);
 
-		/* Clamp reputation stats between valid ranges */
-		b.rumor = CLAMP(b.rumor, 0, 1);
-		b.consistency = CLAMP(b.consistency, 0, 1);
+		// /* Clamp reputation stats between valid ranges */
+		// b.rumor = CLAMP(b.rumor, 0, 1);
+		// b.consistency = CLAMP(b.consistency, 0, 1);
 
 		/* Allow multiple actions per day */
 		for (int action_num = 1;
@@ -157,11 +157,11 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 				}
 				else if (choice == ACT_ADJUST_ALE_PRICE) {
 					ui_state.pending_action = choice;
-					ui_start_number_input(&ui_state, "What is the new price? (100 is 1 dollar)", 1, 500);
+					ui_start_number_input(&ui_state, "What is the new price? (100 is 1 dollar)", 1, 10000);
 				}
 				else if (choice == ACT_ADJUST_WINE_PRICE) {
 					ui_state.pending_action = choice;
-					ui_start_number_input(&ui_state, "What is the new price? (100 is 1 dollar)", 1, 500);
+					ui_start_number_input(&ui_state, "What is the new price? (100 is 1 dollar)", 1, 10000);
 				}
 				else if (choice == ACT_BUY_ALE) {
 					ui_state.pending_action = choice;
@@ -192,11 +192,11 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 
 		save_game(SAVE_PATH, &w, &b, &m, &p);
 
-		char buf[256];
-		snprintf(buf, sizeof(buf),
+		char buf_l[256];
+		snprintf(buf_l, sizeof(buf_l),
 				 "End of day %d: %d sales | Money: $%.2f | Ale: %d | Wine: %d | Rep: %.2f",
 				 w.day, sales, b.money, b.ale.amount, b.wine.amount, b.reputation);
-		log_message(&w.log, buf, LOG_IMPORTANT);
+		log_message(&w.log, buf_l, LOG_IMPORTANT);
 	}
 
 	endwin();
