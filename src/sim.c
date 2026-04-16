@@ -115,5 +115,6 @@ int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 
 	// return day.ale_sales;
 	// return day.wine_sales;
-    return day.revenue;
+    int total_sales = (day.ale_sales + day.wine_sales);
+    return total_sales;
 }
