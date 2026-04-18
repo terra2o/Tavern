@@ -1,5 +1,5 @@
-#include <sim.h>
-#include <sim_random.h>
+#include "../include/sim.h"
+#include "../include/sim_random.h"
 
 DayResult market_simulate(Tavern* b) {
     int customers = 243;

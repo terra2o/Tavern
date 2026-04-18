@@ -30,6 +30,17 @@ void ui_state_init(UiState* state)
     memset(&state->number_input, 0, sizeof(state->number_input));
 }
 
+int color_for_severity(LogSeverity s) 
+{
+    switch (s) {
+        case LOG_INFO:  return 4;
+        case LOG_IMPORTANT: return 5;
+        case LOG_WARN:  return 3;
+        case LOG_ERROR: return 3;
+    }
+    return 0;
+}
+
 void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset) 
 {
     int start_y = max_y - LOG_HEIGHT;
@@ -47,16 +58,16 @@ void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset)
 
     int y = start_y + 1;
 
-    int color_for_severity(LogSeverity s) 
-    {
-        switch (s) {
-            case LOG_INFO:  return 4;
-            case LOG_IMPORTANT: return 5;
-            case LOG_WARN:  return 3;
-            case LOG_ERROR: return 3;
-        }
-        return 0;
-    }
+    // int color_for_severity(LogSeverity s) 
+    // {
+    //     switch (s) {
+    //         case LOG_INFO:  return 4;
+    //         case LOG_IMPORTANT: return 5;
+    //         case LOG_WARN:  return 3;
+    //         case LOG_ERROR: return 3;
+    //     }
+    //     return 0;
+    // }
 
     for (int i = start; i < log->count && y < max_y; i++) 
     {

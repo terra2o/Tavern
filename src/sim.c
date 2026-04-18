@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include "../include/merchant.h"
 #include "../include/sim.h"
 #include "../include/sim_random.h"

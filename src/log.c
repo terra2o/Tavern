@@ -1,6 +1,5 @@
 #include <string.h>
 #include <stdarg.h>
-#include <stdio.h>
 #include "../include/log.h"
 
 void log_message(MessageLog* log, const char* msg, LogSeverity s)

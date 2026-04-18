@@ -1,4 +1,4 @@
-#include <sim.h>
+#include "../include/sim.h"
 #include <stdio.h>
 #include <string.h>
 

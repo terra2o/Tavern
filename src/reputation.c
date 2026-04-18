@@ -1,7 +1,7 @@
 #include <math.h>
-#include "reputation.h"
-#include "sim.h"
-#include "sim_random.h"
+#include "../include/reputation.h"
+#include "../include/sim.h"
+#include "../include/sim_random.h"
 
 void reputation_tick(Tavern* b, int sales_today) {
     // Inventory affects rumor
