@@ -5,6 +5,7 @@
 <p align="center">
 	<img src="assets/screenshot.jpg" width="822">
 </p>
+
 ## Build
 ### Needs:
 - GNU Make
