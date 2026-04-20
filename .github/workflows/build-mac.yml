@@ -1,0 +1,20 @@
+name: macOS Build
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install GCC
+        run: brew install gcc
+      
+      - name: Build
+        run: make
+      
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-binary
+          path: ./bin/tavern-mac
