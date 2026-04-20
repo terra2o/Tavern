@@ -18,7 +18,8 @@
 #include "include/pathway.h"
 #include "include/save.h"
 
-#define GAME_VERSION "0.5.0"
+#define GAME_VERSION "0.6.0"
+#define VERSION_STRING "Tavern - Version: " GAME_VERSION
 
 int main(void) {
 	srand(time(NULL));
@@ -28,17 +29,18 @@ int main(void) {
 	/* Initialize game state */
 	World w;
 	w.day = 0;
+    w.population = 150;
 
 	Merchant m;
-	m.price_per_ale = 0.5f;
-	m.price_per_wine = 1.0f;
+    m.price_per_ale = 1.0f;
+    m.price_per_wine = 25.0f;
 	m.quality = 0.7f;
 	m.instability = 0.2f;
 
 	Tavern b;
-	b.money = 10.0f;
-	b.ale_price = 1.0f;
-    b.wine_price = 5.0;
+	b.money = 300.0f;
+	b.ale_price = 5.0f;
+    b.wine_price = 100.0;
 	b.ale.amount = 0;
 	b.wine.amount = 0;
 	b.total_inventory = 0;
@@ -62,13 +64,14 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     /* No save exists → fresh game initialization */
     w.day = 0;
 
-    m.price_per_ale = 0.5f;
+    m.price_per_ale = 1.0f;
+    m.price_per_wine = 25.0f;
     m.quality = 0.7f;
     m.instability = 0.2f;
 
-    b.money = 10.0f;
-    b.ale_price = 1.0f;
-    b.wine_price = 5.0f;
+	b.money = 300.0f;
+	b.ale_price = 5.0f;
+    b.wine_price = 100.0;
     b.ale.amount = 0;
 	b.wine.amount = 0;
     b.quality_actual = m.quality;
@@ -88,7 +91,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     save_game(SAVE_PATH, &w, &b, &m, &p);
 }
 
-	DayResult r = market_simulate(&b);
+	DayResult r = market_simulate(&b, &w);
 
 	int actions_per_day = 2;
 
@@ -102,7 +105,9 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 	curs_set(0); /* Hide cursor */
 
 	int game_running = 1;
-	log_message(&w.log, "Tavern - version: 0.5.0", LOG_IMPORTANT);
+    char version[64];
+    snprintf(version, sizeof(version), "%s", VERSION_STRING); 
+	log_message(&w.log, version, LOG_IMPORTANT);
 	log_message(&w.log, "Welcome! Press a key to start the best tavern simulation ever...", LOG_IMPORTANT);
 
 	/* UI state for non-blocking input */

@@ -1,15 +1,15 @@
 #include "../include/sim.h"
 #include "../include/sim_random.h"
 
-DayResult market_simulate(Tavern* b) {
-    int customers = 243;
+DayResult market_simulate(Tavern* b, World* w) {
+    int customers = w->population;
 
-    float ale_affordability = (b->ale_price > 0.0f)
-        ? CLAMP(1.0f / b->ale_price, 0.0f, 1.0f)
+    float ale_affordability = (b->ale_price > 0.0f && b->supplier->price_per_ale > 0.0f)
+        ? CLAMP(b->supplier->price_per_ale / b->ale_price, 0.0f, 1.0f)
         : 0.0f;
 
-    float wine_affordability = (b->wine_price > 0.0f)
-        ? CLAMP(1.0f / b->wine_price, 0.0f, 1.0f)
+    float wine_affordability = (b->wine_price > 0.0f && b->supplier->price_per_wine > 0.0f)
+        ? CLAMP(b->supplier->price_per_wine / b->wine_price, 0.0f, 1.0f)
         : 0.0f;
 
     float buy_prob_ale = b->reputation * ale_affordability;

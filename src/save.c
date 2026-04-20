@@ -16,7 +16,8 @@ int save_game(const char* path,
     fprintf(f, "version=1\n\n");
 
     fprintf(f, "[world]\n");
-    fprintf(f, "day=%d\n\n", w->day);
+    fprintf(f, "day=%d\n", w->day);
+    fprintf(f, "population=%d\n\n", w->population);
 
     fprintf(f, "[tavern]\n");
     fprintf(f, "money=%.2f\n", b->money);
@@ -96,6 +97,7 @@ int load_game(const char* path,
         switch (section) {
             case WORLD:
                 sscanf(line, "day=%d", &w->day);
+                sscanf(line, "population=%d", &w->population);
                 break;
 
             case TAVERN:

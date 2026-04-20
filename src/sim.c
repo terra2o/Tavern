@@ -5,6 +5,7 @@
 #include "../include/market.h"
 #include "../include/reputation.h"
 #include "../include/pathway.h"
+#include "../include/population.h"
 
 void apply_action(Tavern* b, Action a, World* w, int amount) {
 	switch (a) {
@@ -72,12 +73,12 @@ void process_payment(World* w, PeriodicPayment* p, Tavern* b, int current_day) {
 int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 	// Rent Logic
 	process_payment(w, p, b, w->day);
-
+    populate(w);
 	update_merchant(b->supplier);
 	
 	b->quality_actual = b->supplier->quality;
 	
-	DayResult day = market_simulate(b);
+	DayResult day = market_simulate(b, w);
 
 	// Consistency punishes wild price changes
 	static float ale_last_price = 1.0f;

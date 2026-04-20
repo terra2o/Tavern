@@ -17,6 +17,7 @@ SRC := \
 	src/sim_random.c \
 	src/market.c \
 	src/reputation.c \
+	src/population.c \
 	src/merchant.c \
 	src/ui.c \
 	src/log.c \
