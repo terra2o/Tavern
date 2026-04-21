@@ -30,6 +30,7 @@ int main(void) {
 	World w;
 	w.day = 0;
     w.population = 150;
+    w.last_advertised_day = 0;
 
 	Merchant m;
     m.price_per_ale = 1.0f;
@@ -63,6 +64,8 @@ int main(void) {
 if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     /* No save exists → fresh game initialization */
     w.day = 0;
+    w.population = 150;
+    w.last_advertised_day = 0;
 
     m.price_per_ale = 1.0f;
     m.price_per_wine = 25.0f;
@@ -91,7 +94,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     save_game(SAVE_PATH, &w, &b, &m, &p);
 }
 
-	DayResult r = market_simulate(&b, &w);
+	DayResult r = market_simulate(&b, &w, &r);
 
 	int actions_per_day = 2;
 
@@ -117,7 +120,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 	/* Main game loop */
 	while (game_running) {
 		/* PATHWAY MECHANIC*/
-		people_fall_because_pathway_dirty(&w, &b, w.day, r.customers);
+		// people_fall_because_pathway_dirty(&w, &b, w.day, r.customers);
 
 		// /* Clamp reputation stats between valid ranges */
 		// b.rumor = CLAMP(b.rumor, 0, 1);
@@ -158,7 +161,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 				}
 				else if (choice == ACT_ADVERTISE) {
 					ui_state.pending_action = choice;
-					ui_start_number_input(&ui_state, "Advertise budget (1-1000): ", 1, 1000);
+					ui_start_number_input(&ui_state, "Advertise budget (1-10000): ", 1, 10000);
 				}
 				else if (choice == ACT_ADJUST_ALE_PRICE) {
 					ui_state.pending_action = choice;

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "../include/merchant.h"
 #include "../include/sim.h"
+#include "../include/advertisement.h"
 #include "../include/sim_random.h"
 #include "../include/market.h"
 #include "../include/reputation.h"
@@ -30,7 +31,9 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
 
 		case ACT_ADVERTISE:
 			b->money -= amount;
-			b->rumor += 0.1f;
+            // 24 because i tried balancing it.
+			b->rumor += (CLAMP(amount / (w->population / 24), 0.0, 1.0));
+            apply_advertisement(w->day, w);
 			break;
 
 		case ACT_BUY_ALE:
@@ -74,11 +77,12 @@ int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 	// Rent Logic
 	process_payment(w, p, b, w->day);
     populate(w);
+	DayResult day = market_simulate(b, w, &day);
+    people_fall_because_pathway_dirty(w, b, w->day, day.customers);
 	update_merchant(b->supplier);
 	
 	b->quality_actual = b->supplier->quality;
 	
-	DayResult day = market_simulate(b, w);
 
 	// Consistency punishes wild price changes
 	static float ale_last_price = 1.0f;

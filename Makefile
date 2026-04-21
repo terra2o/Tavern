@@ -21,6 +21,7 @@ SRC := \
 	src/merchant.c \
 	src/ui.c \
 	src/log.c \
+	src/advertisement.c \
 	src/pathway.c \
 	src/save.c
 

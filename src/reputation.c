@@ -16,11 +16,11 @@ void reputation_tick(Tavern* b, int sales_today) {
     b->rumor += (frand() - 0.5f) * 0.1f;
 
     // Sales affect rumor
-    if (sales_today > 80) b->rumor += 0.02f;
-    // Realised that you can just make something cost 50
+    if (sales_today > 20) b->rumor += 0.02f;
+    // Realized that you can just make something cost 50
     // and keep spamming and you wouldn't really see any
     // negative results, so I'm making these higher
-    if (sales_today < 10) b->rumor -= 0.10f;
+    if (sales_today < 5) b->rumor -= 0.10f;
 
     // Clamp values
     b->quality_perceived = fminf(fmaxf(b->quality_perceived, 0.0f), 1.0f);

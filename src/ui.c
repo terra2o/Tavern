@@ -123,6 +123,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(10, 2, "Rumor: %.2f", b->rumor);
     mvprintw(11, 2, "Consistency: %.2f", b->consistency);
     mvprintw(12, 2, "Handsomeness: %.2f", b->handsomeness);
+    mvprintw(13, 2, "Population: %d", w->population);
 
     /* Draw left panel border */
     for (int y = 0; y < usable_height; y++)
