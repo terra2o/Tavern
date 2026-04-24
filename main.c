@@ -17,7 +17,7 @@
 #include "include/ui.h"
 #include "include/save.h"
 
-#define GAME_VERSION "0.8.0"
+#define GAME_VERSION "0.9.0"
 #define VERSION_STRING "Tavern - Version: " GAME_VERSION
 
 int main(void) {

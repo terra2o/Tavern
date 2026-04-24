@@ -13,7 +13,7 @@ int save_game(const char* path,
     FILE* f = fopen(path, "w");
     if (!f) return 0;
 
-    fprintf(f, "version=0.8.0\n\n");
+    fprintf(f, "version=0.9.0\n\n");
 
     fprintf(f, "[world]\n");
     fprintf(f, "day=%d\n", w->day);
