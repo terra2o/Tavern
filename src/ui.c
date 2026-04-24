@@ -124,6 +124,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(11, 2, "Consistency: %.2f", b->consistency);
     mvprintw(12, 2, "Handsomeness: %.2f", b->handsomeness);
     mvprintw(13, 2, "Population: %d", w->population);
+    mvprintw(14, 2, "Pathway dirtiness: %d/7", (w->day - b->last_pathway_clean_day));
 
     /* Draw left panel border */
     for (int y = 0; y < usable_height; y++)

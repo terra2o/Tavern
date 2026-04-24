@@ -3,8 +3,9 @@
 
 #include "sim.h"
 
-void apply_clean_pathway(World* w, Tavern* b, int current_day);
-void people_fall_because_pathway_dirty(World* w,
+void apply_clean_pathway(Tavern* b, int current_day);
+int people_fall_because_pathway_dirty(
+    World* w,
     Tavern* b,
     int current_day,
     int customers);

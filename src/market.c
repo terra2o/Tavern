@@ -1,12 +1,15 @@
 #include "../include/sim.h"
 #include "../include/sim_random.h"
 #include "../include/advertisement.h"
+#include "../include/pathway.h"
 
-DayResult market_simulate(Tavern* b, World* w, DayResult* r) {
+DayResult market_simulate(Tavern* b, World* w) {
     int customers = (int)(w->population * (0.05f + frand() * 0.10f));
 
-    int lost_customers_ads = no_customers_because_no_ads(w->day, w, r, customers);
-    customers = customers - lost_customers_ads;
+    int lost_customers_ads = no_customers_because_no_ads(w->day, w, customers);
+    int lost_customers_pathway = people_fall_because_pathway_dirty(w, b, w->day, customers);
+    int lost_customers = lost_customers_ads + lost_customers_pathway;
+    customers = customers - lost_customers;
 
     float ale_affordability = (b->ale_price > 0.0f && b->supplier->price_per_ale > 0.0f)
         ? CLAMP(b->supplier->price_per_ale / b->ale_price, 0.0f, 1.0f)

@@ -6,6 +6,6 @@
 
 void apply_advertisement(int current_day, World *w);
 
-int no_customers_because_no_ads(int current_day, World *w, DayResult *r, int customers);
+int no_customers_because_no_ads(int current_day, World *w, int customers);
 
 #endif

@@ -15,7 +15,6 @@
 #include "include/sim.h"
 #include "include/log.h"
 #include "include/ui.h"
-#include "include/pathway.h"
 #include "include/save.h"
 
 #define GAME_VERSION "0.8.0"
@@ -93,8 +92,6 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     /* Immediately create baseline save */
     save_game(SAVE_PATH, &w, &b, &m, &p);
 }
-
-	DayResult r = market_simulate(&b, &w, &r);
 
 	int actions_per_day = 2;
 

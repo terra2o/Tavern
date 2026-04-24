@@ -58,7 +58,7 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
 			break;
 		
 		case ACT_CLEAN_PATHWAY:
-			apply_clean_pathway(w, b, w->day);
+			apply_clean_pathway(b, w->day);
 			break;
 	}
 }
@@ -77,8 +77,7 @@ int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 	// Rent Logic
 	process_payment(w, p, b, w->day);
     populate(w);
-	DayResult day = market_simulate(b, w, &day);
-    people_fall_because_pathway_dirty(w, b, w->day, day.customers);
+	DayResult day = market_simulate(b, w);
 	update_merchant(b->supplier);
 	
 	b->quality_actual = b->supplier->quality;

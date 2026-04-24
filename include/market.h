@@ -1,3 +1,3 @@
 #include "sim.h"
 
-DayResult market_simulate(Tavern* b, World* w, DayResult* r);
+DayResult market_simulate(Tavern* b, World* w);

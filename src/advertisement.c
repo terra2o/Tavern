@@ -9,7 +9,7 @@ void apply_advertisement(int current_day, World *w)
     w->last_advertised_day = current_day;
 }
 
-int no_customers_because_no_ads(int current_day, World *w, DayResult *r, int customers)
+int no_customers_because_no_ads(int current_day, World *w, int customers)
 {
     if (current_day - w->last_advertised_day >= 7)
     {
