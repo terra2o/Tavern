@@ -32,8 +32,8 @@ int main(void) {
     w.last_advertised_day = 0;
 
 	Merchant m;
-    m.price_per_ale = 1.0f;
-    m.price_per_wine = 25.0f;
+    m.price_per_ale = 5.0f;
+    m.price_per_wine = 90.0f;
 	m.quality = 0.7f;
 	m.instability = 0.2f;
 
@@ -66,8 +66,8 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     w.population = 150;
     w.last_advertised_day = 0;
 
-    m.price_per_ale = 1.0f;
-    m.price_per_wine = 25.0f;
+    m.price_per_ale = 5.0f;
+    m.price_per_wine = 90.0f;
     m.quality = 0.7f;
     m.instability = 0.2f;
 
