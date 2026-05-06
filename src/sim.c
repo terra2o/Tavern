@@ -11,12 +11,12 @@
 void apply_action(Tavern* b, Action a, World* w, int amount) {
 	switch (a) {
 		case ACT_SKINCARE:
-			b->handsomeness += 0.02f;
-			b->rumor += 0.01f;
+			b->handsomeness += 0.08f;
+			b->rumor += 0.10f;
 			break;
 
 		case ACT_CLEAN:
-			b->consistency += 0.05f;
+			b->consistency += 0.1f;
 			b->quality_perceived += 0.1f;
 			break;
 
@@ -41,7 +41,7 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
             b->money -= amount * b->supplier->price_per_ale;
             b->total_inventory = b->ale.amount + b->wine.amount;
             break;
-		
+
 
 		case ACT_BUY_WINE:
 			b->wine.amount += amount;
@@ -56,7 +56,7 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
 		case ACT_ADJUST_WINE_PRICE:
 			/* handled outside apply_action */
 			break;
-		
+
 		case ACT_CLEAN_PATHWAY:
 			apply_clean_pathway(b, w->day);
 			break;
@@ -79,9 +79,9 @@ int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
     populate(w);
 	DayResult day = market_simulate(b, w);
 	update_merchant(b->supplier);
-	
+
 	b->quality_actual = b->supplier->quality;
-	
+
 
 	// Consistency punishes wild price changes
 	static float ale_last_price = 1.0f;
