@@ -23,7 +23,8 @@ SRC := \
 	src/log.c \
 	src/advertisement.c \
 	src/pathway.c \
-	src/save.c
+	src/save.c \
+	src/inflation.c
 
 OBJ := $(SRC:.c=.o)
 

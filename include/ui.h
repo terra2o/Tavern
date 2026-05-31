@@ -15,8 +15,12 @@ typedef struct {
     int buffer_idx;
     int min_val;
     int max_val;
+    float float_min_val;
+    float float_max_val;
     const char* prompt;
     int result;
+    float float_result;
+    int is_float;
     int is_confirmed; /* 1 = confirmed, -1 = cancelled, 0 = pending */
 } NumberInputState;
 
@@ -44,9 +48,9 @@ void draw_ui(Tavern* b, int day, int action_num, int actions_per_day,
 /* Update UI state based on a single character of input (non-blocking) */
 void ui_handle_input(int ch, UiState* ui_state, World* w);
 
-/* Start number input mode */
-void ui_start_number_input(UiState* ui_state, const char* prompt, 
-                           int min_val, int max_val);
+/* Start number input mode. Set is_float=1 to allow decimal input. */
+void ui_start_number_input(UiState* ui_state, const char* prompt,
+                           float min_val, float max_val, int is_float);
 
 /* Process a confirmed action with its parameter */
 void ui_process_action(UiState* ui_state, Tavern* b, World* w);

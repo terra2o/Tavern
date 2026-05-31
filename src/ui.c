@@ -126,6 +126,12 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(13, 2, "Population: %d", w->population);
     mvprintw(14, 2, "Pathway dirtiness: %d/7", (w->day - b->last_pathway_clean_day));
 
+    float inf_pct = (w->inflation_rate - 1.0f) * 100.0f;
+    int inf_color = (inf_pct >= 25.0f) ? COLOR_WARNING : (inf_pct >= 10.0f) ? COLOR_YELLOW : COLOR_NORMAL;
+    attron(COLOR_PAIR(inf_color));
+    mvprintw(15, 2, "Inflation: +%.1f%%", inf_pct);
+    attroff(COLOR_PAIR(inf_color));
+
     /* Draw left panel border */
     for (int y = 0; y < usable_height; y++)
     {
@@ -180,14 +186,18 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
 }
 
 /* Start number input mode - initializes the state */
-void ui_start_number_input(UiState* ui_state, const char* prompt, 
-                           int min_val, int max_val)
+void ui_start_number_input(UiState* ui_state, const char* prompt,
+                           float min_val, float max_val, int is_float)
 {
     ui_state->mode = UI_MODE_NUMBER_INPUT;
     ui_state->number_input.prompt = prompt;
-    ui_state->number_input.min_val = min_val;
-    ui_state->number_input.max_val = max_val;
+    ui_state->number_input.float_min_val = min_val;
+    ui_state->number_input.float_max_val = max_val;
+    ui_state->number_input.min_val = (int)min_val;
+    ui_state->number_input.max_val = (int)max_val;
     ui_state->number_input.result = 0;
+    ui_state->number_input.float_result = 0.0f;
+    ui_state->number_input.is_float = is_float;
     ui_state->number_input.is_confirmed = 0;
     ui_state->number_input.buffer_idx = 0;
     memset(ui_state->number_input.buffer, 0, sizeof(ui_state->number_input.buffer));
@@ -217,18 +227,36 @@ static void ui_handle_number_input(int ch, UiState* ui_state, World* w)
             return;
         }
         ni->buffer[ni->buffer_idx] = '\0';
-        int val = atoi(ni->buffer);
-        if (val >= ni->min_val && val <= ni->max_val)
+        if (ni->is_float)
         {
-            ni->result = val;
-            ni->is_confirmed = 1; /* confirmed */
-            ui_state->mode = UI_MODE_NORMAL;
+            float val = (float)atof(ni->buffer);
+            if (val >= ni->float_min_val && val <= ni->float_max_val)
+            {
+                ni->float_result = val;
+                ni->is_confirmed = 1;
+                ui_state->mode = UI_MODE_NORMAL;
+            }
+            else
+            {
+                ni->buffer_idx = 0;
+                memset(ni->buffer, 0, sizeof(ni->buffer));
+            }
         }
         else
         {
-            /* Invalid range, reset for re-entry */
-            ni->buffer_idx = 0;
-            memset(ni->buffer, 0, sizeof(ni->buffer));
+            int val = atoi(ni->buffer);
+            if (val >= ni->min_val && val <= ni->max_val)
+            {
+                ni->result = val;
+                ni->is_confirmed = 1; /* confirmed */
+                ui_state->mode = UI_MODE_NORMAL;
+            }
+            else
+            {
+                /* Invalid range, reset for re-entry */
+                ni->buffer_idx = 0;
+                memset(ni->buffer, 0, sizeof(ni->buffer));
+            }
         }
     }
     else if (ch == KEY_BACKSPACE || ch == 127 || ch == 8)
@@ -240,6 +268,11 @@ static void ui_handle_number_input(int ch, UiState* ui_state, World* w)
         }
     }
     else if (isdigit(ch) && ni->buffer_idx < (int)sizeof(ni->buffer) - 1)
+    {
+        ni->buffer[ni->buffer_idx++] = ch;
+    }
+    else if (ch == '.' && ni->is_float && ni->buffer_idx < (int)sizeof(ni->buffer) - 1
+             && strchr(ni->buffer, '.') == NULL)
     {
         ni->buffer[ni->buffer_idx++] = ch;
     }
@@ -319,7 +352,8 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
         switch (ui_state->pending_action) {
             case ACT_ADJUST_ALE_PRICE:
             {
-                b->ale_price = CLAMP((float)input_value / 100.0f, 0.1f, 50.0f);
+                float fval = ui_state->number_input.float_result;
+                b->ale_price = CLAMP(fval, 0.1f, 500.0f);
                 char buf[128];
                 snprintf(buf, sizeof(buf), "Price adjusted to $%.2f", b->ale_price);
                 log_message(&w->log, buf, LOG_INFO);
@@ -327,7 +361,8 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
             }
             case ACT_ADJUST_WINE_PRICE:
             {
-                b->wine_price = CLAMP((float)input_value / 100.0f, 0.1f, 50.0f);
+                float fval = ui_state->number_input.float_result;
+                b->wine_price = CLAMP(fval, 0.1f, 500.0f);
                 char buf[128];
                 snprintf(buf, sizeof(buf), "Price adjusted to $%.2f", b->wine_price);
                 log_message(&w->log, buf, LOG_INFO);

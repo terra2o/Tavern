@@ -10,6 +10,6 @@ typedef struct Merchant{
 	float instability;
 } Merchant;
 
-void update_merchant(Merchant* m);
+void update_merchant(Merchant* m, float inflation_rate);
 
 #endif

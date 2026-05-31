@@ -12,6 +12,7 @@ typedef struct PeriodicPayment {
     int pay_period;
     int next_payment_day;
     float rent_amount;
+    float base_rent; // Original rent at game start; actual charge = base_rent * inflation_rate
 } PeriodicPayment;
 
 typedef struct Inventory {

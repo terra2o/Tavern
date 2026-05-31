@@ -18,7 +18,8 @@ int save_game(const char* path,
     fprintf(f, "[world]\n");
     fprintf(f, "day=%d\n", w->day);
     fprintf(f, "population=%d\n", w->population);
-    fprintf(f, "last_advertised_day=%d\n\n", w->last_advertised_day);
+    fprintf(f, "last_advertised_day=%d\n", w->last_advertised_day);
+    fprintf(f, "inflation_rate=%.6f\n\n", w->inflation_rate);
 
     fprintf(f, "[tavern]\n");
     fprintf(f, "money=%.2f\n", b->money);
@@ -43,6 +44,7 @@ int save_game(const char* path,
     fprintf(f, "pay_period=%d\n", p->pay_period);
     fprintf(f, "next_payment_day=%d\n", p->next_payment_day);
     fprintf(f, "rent_amount=%f\n", p->rent_amount);
+    fprintf(f, "base_rent=%f\n", p->base_rent);
 
     fclose(f);
     return 1;
@@ -100,6 +102,7 @@ int load_game(const char* path,
                 sscanf(line, "day=%d", &w->day);
                 sscanf(line, "population=%d", &w->population);
                 sscanf(line, "last_advertised_day=%d", &w->last_advertised_day);
+                sscanf(line, "inflation_rate=%f", &w->inflation_rate);
                 break;
 
             case TAVERN:
@@ -127,6 +130,7 @@ int load_game(const char* path,
                 sscanf(line, "pay_period=%d", &p->pay_period);
                 sscanf(line, "next_payment_day=%d", &p->next_payment_day);
                 sscanf(line, "rent_amount=%f", &p->rent_amount);
+                sscanf(line, "base_rent=%f", &p->base_rent);
                 break;
 
             default:
@@ -143,6 +147,10 @@ int load_game(const char* path,
     b->rumor = CLAMP(b->rumor, 0, 1);
     b->consistency = CLAMP(b->consistency, 0, 1);
     b->reputation = CLAMP(b->reputation, 0, 1);
+
+    /* Guard for saves that predate inflation */
+    if (w->inflation_rate <= 0.0f) w->inflation_rate = 1.0f;
+    if (p->base_rent <= 0.0f) p->base_rent = p->rent_amount > 0.0f ? p->rent_amount : 1500.0f;
 
     return 1;
 }

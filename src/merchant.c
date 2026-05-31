@@ -2,16 +2,16 @@
 #include "../include/sim_random.h"
 #include "../include/sim.h"
 
-void update_merchant(Merchant* m) 
+void update_merchant(Merchant* m, float inflation_rate)
 {
-    if (frand() < m->instability) 
+    if (frand() < m->instability)
     {
         m->quality += (frand() - 0.5f) * 0.2f;
         m->price_per_ale *= (1.0f + (frand() - 0.5f) * 0.15f);
         m->price_per_wine *= (1.0f + (frand() - 0.5f) * 0.25f);
     }
-	
+
 	m->quality = CLAMP(m->quality, 0.3f, 1.0f);
-    m->price_per_ale = CLAMP(m->price_per_ale, 3.0f, 8.0f);
-    m->price_per_wine = CLAMP(m->price_per_wine, 80.0f, 120.0f);
+    m->price_per_ale = CLAMP(m->price_per_ale, 3.0f * inflation_rate, 8.0f * inflation_rate);
+    m->price_per_wine = CLAMP(m->price_per_wine, 80.0f * inflation_rate, 120.0f * inflation_rate);
 }

@@ -7,6 +7,7 @@
 #include "../include/reputation.h"
 #include "../include/pathway.h"
 #include "../include/population.h"
+#include "../include/inflation.h"
 
 void apply_action(Tavern* b, Action a, World* w, int amount) {
 	switch (a) {
@@ -65,10 +66,11 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
 
 void process_payment(World* w, PeriodicPayment* p, Tavern* b, int current_day) {
 	if (current_day >= p->next_payment_day) {
-		b->money -= p->rent_amount;
+		float actual_rent = p->base_rent * w->inflation_rate;
+		b->money -= actual_rent;
 		p->next_payment_day += p->pay_period;
         char buf[256];
-        snprintf(buf, sizeof(buf), "Paid rent: %.2f", p->rent_amount);
+        snprintf(buf, sizeof(buf), "Paid rent: $%.2f", actual_rent);
         log_message(&w->log, buf, LOG_IMPORTANT);
 	}
 }
@@ -77,8 +79,10 @@ int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 	// Rent Logic
 	process_payment(w, p, b, w->day);
     populate(w);
+    // Should inflation_tick(w); be exactly here? not sure...
+	inflation_tick(w);
 	DayResult day = market_simulate(b, w);
-	update_merchant(b->supplier);
+	update_merchant(b->supplier, w->inflation_rate);
 
 	b->quality_actual = b->supplier->quality;
 

@@ -25,11 +25,11 @@ int main(void) {
 	
 	#define SAVE_PATH "tavernsavefile.txt"
 
-	/* Initialize game state */
 	World w;
 	w.day = 0;
     w.population = 150;
     w.last_advertised_day = 0;
+    w.inflation_rate = 1.0f;
 
 	Merchant m;
     m.price_per_ale = 5.0f;
@@ -40,7 +40,7 @@ int main(void) {
 	Tavern b;
 	b.money = 300.0f;
 	b.ale_price = 5.0f;
-    b.wine_price = 100.0;
+    b.wine_price = 10.0f;
 	b.ale.amount = 0;
 	b.wine.amount = 0;
 	b.total_inventory = 0;
@@ -57,14 +57,14 @@ int main(void) {
 	p.pay_period = 30;
 	p.next_payment_day = w.day + p.pay_period;
 	p.rent_amount = 1500;
-	// TODO: make inflation mechanic later, this can't be static.
+	p.base_rent = 1500;
 
 
 if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
-    /* No save exists → fresh game initialization */
     w.day = 0;
     w.population = 150;
     w.last_advertised_day = 0;
+    w.inflation_rate = 1.0f;
 
     m.price_per_ale = 5.0f;
     m.price_per_wine = 90.0f;
@@ -73,7 +73,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 
 	b.money = 300.0f;
 	b.ale_price = 5.0f;
-    b.wine_price = 100.0;
+    b.wine_price = 10.0f;
     b.ale.amount = 0;
 	b.wine.amount = 0;
     b.quality_actual = m.quality;
@@ -88,21 +88,20 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     p.pay_period = 30;
     p.next_payment_day = w.day + p.pay_period;
     p.rent_amount = 1500;
+    p.base_rent = 1500;
 
-    /* Immediately create baseline save */
     save_game(SAVE_PATH, &w, &b, &m, &p);
 }
 
 	int actions_per_day = 2;
 
-	/* Initialize ncurses */
 	initscr();
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
-	nodelay(stdscr, TRUE); /* Non-blocking getch() */
+	nodelay(stdscr, TRUE);
 	init_colors();
-	curs_set(0); /* Hide cursor */
+	curs_set(0);
 
 	int game_running = 1;
     char version[64];
@@ -110,11 +109,9 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 	log_message(&w.log, version, LOG_IMPORTANT);
 	log_message(&w.log, "Welcome! Press a key to start the best tavern simulation ever...", LOG_IMPORTANT);
 
-	/* UI state for non-blocking input */
 	UiState ui_state;
 	ui_state_init(&ui_state);
 
-	/* Main game loop */
 	while (game_running) {
 		/* PATHWAY MECHANIC*/
 		// people_fall_because_pathway_dirty(&w, &b, w.day, r.customers);
@@ -158,23 +155,23 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 				}
 				else if (choice == ACT_ADVERTISE) {
 					ui_state.pending_action = choice;
-					ui_start_number_input(&ui_state, "Advertise budget (1-10000): ", 1, 10000);
+					ui_start_number_input(&ui_state, "Advertise budget (1-10000): ", 1, 10000, 0);
 				}
 				else if (choice == ACT_ADJUST_ALE_PRICE) {
 					ui_state.pending_action = choice;
-					ui_start_number_input(&ui_state, "What is the new price? (100 is 1 dollar)", 1, 10000);
+					ui_start_number_input(&ui_state, "New ale price (e.g. 3.50): ", 0.1f, 500.0f, 1);
 				}
 				else if (choice == ACT_ADJUST_WINE_PRICE) {
 					ui_state.pending_action = choice;
-					ui_start_number_input(&ui_state, "What is the new price? (100 is 1 dollar)", 1, 10000);
+					ui_start_number_input(&ui_state, "New wine price (e.g. 5.00): ", 0.1f, 500.0f, 1);
 				}
 				else if (choice == ACT_BUY_ALE) {
 					ui_state.pending_action = choice;
-					ui_start_number_input(&ui_state, "Buy how many mugs? ", 1, 10000);
+					ui_start_number_input(&ui_state, "Buy how many mugs? ", 1, 10000, 0);
 				}
 				else if (choice == ACT_BUY_WINE) {
 					ui_state.pending_action = choice;
-					ui_start_number_input(&ui_state, "Buy how many glasses? ", 1, 10000);
+					ui_start_number_input(&ui_state, "Buy how many glasses? ", 1, 10000, 0);
 				}
 				else if (choice == ACT_CLEAN_PATHWAY) {
 					apply_action(&b, choice, &w, 0);

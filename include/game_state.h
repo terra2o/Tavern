@@ -8,7 +8,8 @@ typedef struct World {
     int population; // This is the population of the 'town' our tavern is in
     int last_advertised_day; // Gonna use this for when you haven't advertised for
     // some time, they stop coming...
-    MessageLog log; // Logs of events happening 
+    MessageLog log; // Logs of events happening
+    float inflation_rate; // Cumulative price multiplier since day 0, starts at 1.0
 } World;
 
 #endif
