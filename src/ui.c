@@ -220,9 +220,9 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         mvprintw(box_y + 3, box_x + 2, "Two patrons are throwing fists.");
         mvprintw(box_y + 4, box_x + 2, "What do you do?");
 
-        mvprintw(box_y + 6, box_x + 2, "1 - Call the guard   ($50, rep -0.05)");
-        mvprintw(box_y + 7, box_x + 2, "2 - Break it up      (rep +0.05)");
-        mvprintw(box_y + 8, box_x + 2, "3 - Ignore it        (rep -0.10)");
+        mvprintw(box_y + 6, box_x + 2, "1 - Call the guard   ($50, rep -0.15)");
+        mvprintw(box_y + 7, box_x + 2, "2 - Break it up      (rep +0.30, risky)");
+        mvprintw(box_y + 8, box_x + 2, "3 - Ignore it        (rep -0.30)");
     }
 
     refresh();
@@ -338,11 +338,11 @@ static void ui_handle_fight(int ch, UiState* ui_state, Tavern* b, World* w)
     case '1':
         if (b->money >= 50.0f) {
             b->money -= 50.0f;
-            b->reputation -= 0.05f;
+            b->reputation -= 0.15f;
             b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
             log_message(&w->log, "You called the guard. The brawlers were removed. Cost: $50.", LOG_INFO);
         } else {
-            b->reputation -= 0.1f;
+            b->reputation -= 0.15;
             b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
             log_message(&w->log, "You called the guard but couldn't cover the fee. Rep took a hit.", LOG_WARN);
         }
@@ -353,7 +353,7 @@ static void ui_handle_fight(int ch, UiState* ui_state, Tavern* b, World* w)
         ui_state->fight.resolved = 1;
         break;
     case '3':
-        b->reputation -= 0.1f;
+        b->reputation -= 0.30f;
         b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
         log_message(&w->log, "You ignored the brawl. Several customers left in disgust.", LOG_WARN);
         ui_state->fight.resolved = 1;
