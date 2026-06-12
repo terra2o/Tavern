@@ -132,7 +132,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 				napms(16);
 
 				if (ch != ERR) {
-					ui_handle_input(ch, &ui_state, &w);
+					ui_handle_input(ch, &ui_state, &b, &w);
 				}
 
 				if (ui_state.number_input.is_confirmed != 0) {
@@ -191,6 +191,21 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 
 		/* End of day simulation (ADVANCES w.day) */
 		int sales = simulate_day(&b, &w, &p);
+
+		/* Resolve any pending event before the next day */
+		if (w.pending_event == EVENT_FIGHT) {
+			w.pending_event = EVENT_NONE;
+			ui_state.mode = UI_MODE_FIGHT;
+			ui_state.fight.resolved = 0;
+			while (!ui_state.fight.resolved) {
+				draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state);
+				int ch = getch();
+				napms(16);
+				if (ch != ERR)
+					ui_handle_input(ch, &ui_state, &b, &w);
+			}
+			ui_state.mode = UI_MODE_NORMAL;
+		}
 
 		save_game(SAVE_PATH, &w, &b, &m, &p);
 

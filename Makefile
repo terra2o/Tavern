@@ -24,7 +24,8 @@ SRC := \
 	src/advertisement.c \
 	src/pathway.c \
 	src/save.c \
-	src/inflation.c
+	src/inflation.c \
+	src/event.c
 
 OBJ := $(SRC:.c=.o)
 

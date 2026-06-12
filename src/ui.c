@@ -14,6 +14,7 @@
 #include "../include/ui.h"
 #include "../include/log.h"
 #include "../include/game_state.h"
+#include "../include/event.h"
 
 #define COLOR_MONEY 1
 #define COLOR_WARNING 2
@@ -28,6 +29,7 @@ void ui_state_init(UiState* state)
     state->log_scroll_offset = 0;
     state->pending_action = (Action)0;
     memset(&state->number_input, 0, sizeof(state->number_input));
+    state->fight.resolved = 0;
 }
 
 int color_for_severity(LogSeverity s) 
@@ -182,6 +184,47 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         mvprintw(input_y + 5, 2, "UP/DOWN: scroll log");
     }
 
+    /* --- FIGHT EVENT OVERLAY --- */
+    if (ui_state->mode == UI_MODE_FIGHT)
+    {
+        int box_w = 52;
+        int box_h = 11;
+        int box_x = (max_x - box_w) / 2;
+        int box_y = (max_y - LOG_HEIGHT - box_h) / 2;
+
+        /* Box border */
+        mvaddch(box_y, box_x, ACS_ULCORNER);
+        mvaddch(box_y, box_x + box_w - 1, ACS_URCORNER);
+        mvaddch(box_y + box_h - 1, box_x, ACS_LLCORNER);
+        mvaddch(box_y + box_h - 1, box_x + box_w - 1, ACS_LRCORNER);
+        for (int x = box_x + 1; x < box_x + box_w - 1; x++)
+        {
+            mvaddch(box_y, x, ACS_HLINE);
+            mvaddch(box_y + box_h - 1, x, ACS_HLINE);
+        }
+        for (int y = box_y + 1; y < box_y + box_h - 1; y++)
+        {
+            mvaddch(y, box_x, ACS_VLINE);
+            mvaddch(y, box_x + box_w - 1, ACS_VLINE);
+        }
+
+        /* Clear interior */
+        for (int y = box_y + 1; y < box_y + box_h - 1; y++)
+            for (int x = box_x + 1; x < box_x + box_w - 1; x++)
+                mvaddch(y, x, ' ');
+
+        attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
+        mvprintw(box_y + 1, box_x + 2, "!! A BRAWL HAS BROKEN OUT !!");
+        attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
+
+        mvprintw(box_y + 3, box_x + 2, "Two patrons are throwing fists.");
+        mvprintw(box_y + 4, box_x + 2, "What do you do?");
+
+        mvprintw(box_y + 6, box_x + 2, "1 - Call the guard   ($50, rep -0.05)");
+        mvprintw(box_y + 7, box_x + 2, "2 - Break it up      (rep +0.05)");
+        mvprintw(box_y + 8, box_x + 2, "3 - Ignore it        (rep -0.10)");
+    }
+
     refresh();
 }
 
@@ -289,8 +332,37 @@ static void ui_handle_number_input(int ch, UiState* ui_state, World* w)
     }
 }
 
+static void ui_handle_fight(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    switch (ch) {
+    case '1':
+        if (b->money >= 50.0f) {
+            b->money -= 50.0f;
+            b->reputation -= 0.05f;
+            b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+            log_message(&w->log, "You called the guard. The brawlers were removed. Cost: $50.", LOG_INFO);
+        } else {
+            b->reputation -= 0.1f;
+            b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+            log_message(&w->log, "You called the guard but couldn't cover the fee. Rep took a hit.", LOG_WARN);
+        }
+        ui_state->fight.resolved = 1;
+        break;
+    case '2':
+        event_fight_break_up(b, w);
+        ui_state->fight.resolved = 1;
+        break;
+    case '3':
+        b->reputation -= 0.1f;
+        b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+        log_message(&w->log, "You ignored the brawl. Several customers left in disgust.", LOG_WARN);
+        ui_state->fight.resolved = 1;
+        break;
+    }
+}
+
 /* Update UI state based on input - handles mode-specific logic */
-void ui_handle_input(int ch, UiState* ui_state, World* w)
+void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
 {
     int max_scroll = w->log.count - (LOG_HEIGHT - 1);
     if (max_scroll < 0) max_scroll = 0;
@@ -302,6 +374,10 @@ void ui_handle_input(int ch, UiState* ui_state, World* w)
     {
         ui_handle_number_input(ch, ui_state, w);
     }
+    else if (ui_state->mode == UI_MODE_FIGHT)
+    {
+        ui_handle_fight(ch, ui_state, b, w);
+    }
     else if (ui_state->mode == UI_MODE_NORMAL)
     {
         /* In normal mode, handle scrolling */
@@ -309,7 +385,7 @@ void ui_handle_input(int ch, UiState* ui_state, World* w)
             ui_state->log_scroll_offset++;
         else if (ch == KEY_DOWN)
             ui_state->log_scroll_offset--;
-        
+
         if (ui_state->log_scroll_offset < 0)
             ui_state->log_scroll_offset = 0;
     }

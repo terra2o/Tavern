@@ -8,6 +8,7 @@
 #include "../include/pathway.h"
 #include "../include/population.h"
 #include "../include/inflation.h"
+#include "../include/event.h"
 
 void apply_action(Tavern* b, Action a, World* w, int amount) {
 	switch (a) {
@@ -81,6 +82,7 @@ int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
     populate(w);
     // Should inflation_tick(w); be exactly here? not sure...
 	inflation_tick(w);
+	random_event(w);
 	DayResult day = market_simulate(b, w);
 	update_merchant(b->supplier, w->inflation_rate);
 

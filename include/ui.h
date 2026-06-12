@@ -6,7 +6,8 @@
 /* UI state machine modes */
 typedef enum {
     UI_MODE_NORMAL,
-    UI_MODE_NUMBER_INPUT
+    UI_MODE_NUMBER_INPUT,
+    UI_MODE_FIGHT
 } UiMode;
 
 /* Number input state */
@@ -24,12 +25,18 @@ typedef struct {
     int is_confirmed; /* 1 = confirmed, -1 = cancelled, 0 = pending */
 } NumberInputState;
 
+/* Fight event state */
+typedef struct {
+    int resolved;
+} FightState;
+
 /* Global UI state for non-blocking input */
 typedef struct {
     UiMode mode;
     int log_scroll_offset;
     NumberInputState number_input;
     Action pending_action;
+    FightState fight;
 } UiState;
 
 /* Initialize ncurses color pairs */
@@ -46,7 +53,7 @@ void draw_ui(Tavern* b, int day, int action_num, int actions_per_day,
              World *w, UiState* ui_state);
 
 /* Update UI state based on a single character of input (non-blocking) */
-void ui_handle_input(int ch, UiState* ui_state, World* w);
+void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w);
 
 /* Start number input mode. Set is_float=1 to allow decimal input. */
 void ui_start_number_input(UiState* ui_state, const char* prompt,

@@ -3,6 +3,12 @@
 
 #include "log.h"
 
+typedef enum {
+    EVENT_NONE,
+    EVENT_FIGHT,
+    EVENT_VOMIT
+} PendingEventType;
+
 typedef struct World {
     int day; // This is absolute day since game started
     int population; // This is the population of the 'town' our tavern is in
@@ -10,6 +16,7 @@ typedef struct World {
     // some time, they stop coming...
     MessageLog log; // Logs of events happening
     float inflation_rate; // Cumulative price multiplier since day 0, starts at 1.0
+    PendingEventType pending_event;
 } World;
 
 #endif
