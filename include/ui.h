@@ -2,13 +2,19 @@
 #define UI_H
 
 #include "../include/sim.h"
+#include "../include/game_state.h"
+
 
 /* UI state machine modes */
 typedef enum {
     UI_MODE_NORMAL,
     UI_MODE_NUMBER_INPUT,
-    UI_MODE_FIGHT
+    UI_MODE_FIGHT,
+    UI_MODE_VOMIT,
+    UI_MODE_STEAL
 } UiMode;
+
+/* ----- STATES ------ */
 
 /* Number input state */
 typedef struct {
@@ -30,6 +36,16 @@ typedef struct {
     int resolved;
 } FightState;
 
+/* Vomit event state */
+typedef struct {
+    int resolved;
+} VomitState;
+
+/* Steal event state */
+typedef struct {
+    int resolved;
+} StealState;
+
 /* Global UI state for non-blocking input */
 typedef struct {
     UiMode mode;
@@ -37,6 +53,8 @@ typedef struct {
     NumberInputState number_input;
     Action pending_action;
     FightState fight;
+    VomitState vomit;
+    StealState steal;
 } UiState;
 
 /* Initialize ncurses color pairs */

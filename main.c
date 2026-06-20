@@ -205,7 +205,31 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 					ui_handle_input(ch, &ui_state, &b, &w);
 			}
 			ui_state.mode = UI_MODE_NORMAL;
-		}
+		} else if (w.pending_event == EVENT_VOMIT) {
+            w.pending_event = EVENT_NONE;
+            ui_state.mode = UI_MODE_VOMIT;
+            ui_state.vomit.resolved = 0;
+            while (!ui_state.vomit.resolved) {
+                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state);
+                int ch = getch();
+                napms(16);
+                if (ch != ERR)
+                    ui_handle_input(ch, &ui_state, &b, &w);
+            }
+            ui_state.mode = UI_MODE_NORMAL;
+        } else if (w.pending_event == EVENT_STEAL) {
+            w.pending_event = EVENT_NONE;
+            ui_state.mode = UI_MODE_STEAL;
+            ui_state.steal.resolved = 0;
+            while (!ui_state.steal.resolved) {
+                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state);
+                int ch = getch();
+                napms(16);
+                if (ch != ERR)
+                    ui_handle_input(ch, &ui_state, &b, &w);
+            }
+            ui_state.mode = UI_MODE_NORMAL;
+        }
 
 		save_game(SAVE_PATH, &w, &b, &m, &p);
 

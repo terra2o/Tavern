@@ -22,6 +22,19 @@
 #define COLOR_NORMAL 4
 #define COLOR_IMPORTANT 5
 
+#define STRING_ARRAY_MAX 32
+#define STRING_ARRAY_LEN 256
+#define PUSH_STR(arr, count, s) \
+    strncpy((arr)[(count)++], (s), STRING_ARRAY_LEN - 1)
+/*
+ * Global string array for
+ * typing stuff inside boxes.
+ * Gets cleared everytime we
+ * call `draw_centered_box()`
+ */
+char string_array[STRING_ARRAY_MAX][STRING_ARRAY_LEN];
+int  string_array_count = 0;
+
 /* Initialize UI state */
 void ui_state_init(UiState* state)
 {
@@ -87,6 +100,53 @@ void init_colors(void)
     init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
     init_pair(COLOR_NORMAL, COLOR_WHITE, COLOR_BLACK);
     init_pair(COLOR_IMPORTANT, COLOR_BLUE, COLOR_BLACK);
+}
+
+void string_array_clear(void) {
+    memset(string_array, 0, sizeof(string_array));
+    string_array_count = 0;
+}
+
+void draw_centered_box(World *w, 
+                    UiState* ui_state, 
+                    int box_w, 
+                    int box_h, 
+                    int max_x, 
+                    int max_y,
+                    char* title)
+{
+    int box_x = (max_x - box_w) / 2;
+    int box_y = (max_y - LOG_HEIGHT - box_h) / 2;
+
+    /* Box border */
+    mvaddch(box_y, box_x, ACS_ULCORNER);
+    mvaddch(box_y, box_x + box_w - 1, ACS_URCORNER);
+    mvaddch(box_y + box_h - 1, box_x, ACS_LLCORNER);
+    mvaddch(box_y + box_h - 1, box_x + box_w - 1, ACS_LRCORNER);
+
+    for (int x = box_x + 1; x < box_x + box_w - 1; x++) {
+        mvaddch(box_y, x, ACS_HLINE);
+        mvaddch(box_y + box_h - 1, x, ACS_HLINE);
+    }
+    for (int y = box_y + 1; y < box_y + box_h - 1; y++) {
+        mvaddch(y, box_x, ACS_VLINE);
+        mvaddch(y, box_x + box_w - 1, ACS_VLINE);
+    }
+
+    /* Clear interior */
+    for (int y = box_y + 1; y < box_y + box_h - 1; y++)
+        for (int x = box_x + 1; x < box_x + box_w - 1; x++)
+            mvaddch(y, x, ' ');
+
+    attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
+    mvprintw(box_y + 1, box_x + 2, "%s", title);
+    attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
+
+    for (int i = 0; i < string_array_count; i++) {
+        mvprintw(box_y + 3 + i, box_x + 2, "%.*s", box_w - 4, string_array[i]);
+    }
+
+    string_array_clear();
 }
 
 void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, UiState* ui_state)
@@ -185,44 +245,38 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     }
 
     /* --- FIGHT EVENT OVERLAY --- */
-    if (ui_state->mode == UI_MODE_FIGHT)
-    {
-        int box_w = 52;
-        int box_h = 11;
-        int box_x = (max_x - box_w) / 2;
-        int box_y = (max_y - LOG_HEIGHT - box_h) / 2;
+    if (ui_state->mode == UI_MODE_FIGHT) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "Two patrons are throwing fists.");
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1 - Call the guard   ($50, rep -0.15)");
+        PUSH_STR(string_array, string_array_count, "2 - Break it up      (rep +0.30, risky)");
+        PUSH_STR(string_array, string_array_count, "3 - Ignore it        (rep -0.30)");
 
-        /* Box border */
-        mvaddch(box_y, box_x, ACS_ULCORNER);
-        mvaddch(box_y, box_x + box_w - 1, ACS_URCORNER);
-        mvaddch(box_y + box_h - 1, box_x, ACS_LLCORNER);
-        mvaddch(box_y + box_h - 1, box_x + box_w - 1, ACS_LRCORNER);
-        for (int x = box_x + 1; x < box_x + box_w - 1; x++)
-        {
-            mvaddch(box_y, x, ACS_HLINE);
-            mvaddch(box_y + box_h - 1, x, ACS_HLINE);
-        }
-        for (int y = box_y + 1; y < box_y + box_h - 1; y++)
-        {
-            mvaddch(y, box_x, ACS_VLINE);
-            mvaddch(y, box_x + box_w - 1, ACS_VLINE);
-        }
+        draw_centered_box(w, ui_state, 52, 11, max_x, max_y, "!! A BRAWL HAS BEGUN !!");
+    }
+    /* --- VOMIT EVENT OVERLAY --- */
+    if (ui_state->mode == UI_MODE_VOMIT) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1 - Clean it up yourself    (-20 handsomeness, rep -0.30)");
+        PUSH_STR(string_array, string_array_count, "2 - Pay someone to clean it ($500, rep +0.30)");
+        PUSH_STR(string_array, string_array_count, "3 - Ignore it               (-50 customers next day, rep -0.30)");
 
-        /* Clear interior */
-        for (int y = box_y + 1; y < box_y + box_h - 1; y++)
-            for (int x = box_x + 1; x < box_x + box_w - 1; x++)
-                mvaddch(y, x, ' ');
+        draw_centered_box(w, ui_state, 52, 11, max_x, max_y, "!! SOMEONE JUST PUKED EVERYWHERE !!");
+    }
+    /* --- STEAL EVENT OVERLAY --- */
+    if (ui_state->mode == UI_MODE_STEAL) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1 - Punch him in the face (rep +0.30, risky)");
+        PUSH_STR(string_array, string_array_count, "2 - Call the guard        ($50, rep -0.15)");
+        PUSH_STR(string_array, string_array_count, "3 - Ignore it             ($200)");
 
-        attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
-        mvprintw(box_y + 1, box_x + 2, "!! A BRAWL HAS BROKEN OUT !!");
-        attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
-
-        mvprintw(box_y + 3, box_x + 2, "Two patrons are throwing fists.");
-        mvprintw(box_y + 4, box_x + 2, "What do you do?");
-
-        mvprintw(box_y + 6, box_x + 2, "1 - Call the guard   ($50, rep -0.15)");
-        mvprintw(box_y + 7, box_x + 2, "2 - Break it up      (rep +0.30, risky)");
-        mvprintw(box_y + 8, box_x + 2, "3 - Ignore it        (rep -0.30)");
+        draw_centered_box(w, ui_state, 52, 11, max_x, max_y, "!! SOMEONE IS TRYING TO STEAL SOME BOOZE !!");
     }
 
     refresh();
@@ -334,6 +388,8 @@ static void ui_handle_number_input(int ch, UiState* ui_state, World* w)
 
 static void ui_handle_fight(int ch, UiState* ui_state, Tavern* b, World* w)
 {
+    // NOTE: maybe i should refactor this? or ui.c in general because
+    // i don't want logic in ui.c
     switch (ch) {
     case '1':
         if (b->money >= 50.0f) {
@@ -361,6 +417,47 @@ static void ui_handle_fight(int ch, UiState* ui_state, Tavern* b, World* w)
     }
 }
 
+static void ui_handle_vomit(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    switch (ch) {
+    case '1':
+        b->handsomeness -= 0.20;
+        b->reputation -= 0.30;
+        b->rumor -= 0.30;
+        ui_state->vomit.resolved = 1;
+        break;
+    case '2':
+        b->money -= 500;
+        b->reputation += 0.30;
+        b->rumor += 0.30;
+        ui_state->vomit.resolved = 1;
+        break;
+    case '3':
+        b->reputation -= 0.30f;
+        b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+        log_message(&w->log, "You ignored it. People are disgusted.", LOG_WARN);
+        ui_state->vomit.resolved = 1;
+        break;
+    }
+}
+
+static void ui_handle_steal(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    switch (ch) {
+    case '1':
+        handle_steal(1, b, w);
+        ui_state->steal.resolved = 1;
+        break;
+    case '2':
+        handle_steal(2, b, w);
+        ui_state->steal.resolved = 1;
+        break;
+    case '3':
+        handle_steal(3, b, w);
+        ui_state->steal.resolved = 1;
+        break;
+    }
+}
 /* Update UI state based on input - handles mode-specific logic */
 void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
 {
@@ -370,16 +467,15 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
     if (ui_state->log_scroll_offset > max_scroll)
         ui_state->log_scroll_offset = max_scroll;
 
-    if (ui_state->mode == UI_MODE_NUMBER_INPUT)
-    {
+    if (ui_state->mode == UI_MODE_NUMBER_INPUT) {
         ui_handle_number_input(ch, ui_state, w);
-    }
-    else if (ui_state->mode == UI_MODE_FIGHT)
-    {
+    } else if (ui_state->mode == UI_MODE_FIGHT) {
         ui_handle_fight(ch, ui_state, b, w);
-    }
-    else if (ui_state->mode == UI_MODE_NORMAL)
-    {
+    } else if (ui_state->mode == UI_MODE_VOMIT) {
+        ui_handle_vomit(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_STEAL) {
+        ui_handle_steal(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_NORMAL) {
         /* In normal mode, handle scrolling */
         if (ch == KEY_UP)
             ui_state->log_scroll_offset++;
