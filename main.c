@@ -25,7 +25,7 @@ int main(void) {
 	
 	#define SAVE_PATH "tavernsavefile.txt"
 
-	World w;
+	World w = {0};
 	w.day = 0;
     w.population = 150;
     w.last_advertised_day = 0;

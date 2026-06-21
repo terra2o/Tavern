@@ -43,6 +43,8 @@ void ui_state_init(UiState* state)
     state->pending_action = (Action)0;
     memset(&state->number_input, 0, sizeof(state->number_input));
     state->fight.resolved = 0;
+    state->vomit.resolved = 0;
+    state->steal.resolved = 0;
 }
 
 int color_for_severity(LogSeverity s) 
