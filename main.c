@@ -18,7 +18,7 @@
 #include "include/save.h"
 #include "include/event.h"
 
-#define GAME_VERSION "0.9.0"
+#define GAME_VERSION "0.12.0"
 #define VERSION_STRING "Tavern - Version: " GAME_VERSION
 
 int main(void) {
