@@ -109,9 +109,7 @@ void string_array_clear(void) {
     string_array_count = 0;
 }
 
-void draw_centered_box(World *w, 
-                    UiState* ui_state, 
-                    int box_w, 
+void draw_centered_box(int box_w, 
                     int box_h, 
                     int max_x, 
                     int max_y,
@@ -151,7 +149,7 @@ void draw_centered_box(World *w,
     string_array_clear();
 }
 
-void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, UiState* ui_state)
+void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, UiState* ui_state, WarState* war)
 {
     int max_x, max_y;
     getmaxyx(stdscr, max_y, max_x);
@@ -189,6 +187,15 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(12, 2, "Handsomeness: %.2f", b->handsomeness);
     mvprintw(13, 2, "Population: %d", w->population);
     mvprintw(14, 2, "Pathway dirtiness: %d/7", (w->day - b->last_pathway_clean_day));
+
+    if (w->at_war) {
+        attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
+        if (w->our_kingdom_attack)
+            mvprintw(16, 2, "** AT WAR (your kingdom is attacking) **");
+        else
+            mvprintw(16, 2, "** AT WAR (your kingdom is defending) **");
+        attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
+    }
 
     float inf_pct = (w->inflation_rate - 1.0f) * 100.0f;
     int inf_color = (inf_pct >= 25.0f) ? COLOR_WARNING : (inf_pct >= 10.0f) ? COLOR_YELLOW : COLOR_NORMAL;
@@ -256,7 +263,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         PUSH_STR(string_array, string_array_count, "2 - Break it up      (rep +0.30, risky)");
         PUSH_STR(string_array, string_array_count, "3 - Ignore it        (rep -0.30)");
 
-        draw_centered_box(w, ui_state, 52, 11, max_x, max_y, "!! A BRAWL HAS BEGUN !!");
+        draw_centered_box(52, 11, max_x, max_y, "!! A BRAWL HAS BEGUN !!");
     }
     /* --- VOMIT EVENT OVERLAY --- */
     if (ui_state->mode == UI_MODE_VOMIT) {
@@ -267,7 +274,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         PUSH_STR(string_array, string_array_count, "2 - Pay someone to clean it ($500, rep +0.30)");
         PUSH_STR(string_array, string_array_count, "3 - Ignore it               (-50 customers next day, rep -0.30)");
 
-        draw_centered_box(w, ui_state, 52, 11, max_x, max_y, "!! SOMEONE JUST PUKED EVERYWHERE !!");
+        draw_centered_box(52, 11, max_x, max_y, "!! SOMEONE JUST PUKED EVERYWHERE !!");
     }
     /* --- STEAL EVENT OVERLAY --- */
     if (ui_state->mode == UI_MODE_STEAL) {
@@ -278,7 +285,51 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         PUSH_STR(string_array, string_array_count, "2 - Call the guard        ($50, rep -0.15)");
         PUSH_STR(string_array, string_array_count, "3 - Ignore it             ($200)");
 
-        draw_centered_box(w, ui_state, 52, 11, max_x, max_y, "!! SOMEONE IS TRYING TO STEAL SOME BOOZE !!");
+        draw_centered_box(52, 11, max_x, max_y, "!! SOMEONE IS TRYING TO STEAL SOME BOOZE !!");
+    }
+    /* --- WAR SOLDIERS EVENT OVERLAY --- */
+    if (ui_state->mode == UI_MODE_WAR_SOLDIERS) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "A squad of soldiers marches in demanding free drinks.");
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1 - Give them free drinks  ($200, rep +0.20)");
+        PUSH_STR(string_array, string_array_count, "2 - Charge them half price ($100, rep +0.05)");
+        PUSH_STR(string_array, string_array_count, "3 - Refuse them            (rep -0.30, risky)");
+
+        draw_centered_box(60, 11, max_x, max_y, "!! SOLDIERS DEMAND DRINKS !!");
+    }
+    /* --- WAR REFUGEES EVENT OVERLAY --- */
+    if (ui_state->mode == UI_MODE_WAR_REFUGEES) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "A crowd of war refugees seeks shelter in your tavern.");
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1 - Welcome them (rep +0.25, pop +20)");
+        PUSH_STR(string_array, string_array_count, "2 - Charge entry ($300, rep -0.10)");
+        PUSH_STR(string_array, string_array_count, "3 - Turn them away (rep -0.40)");
+
+        draw_centered_box(60, 11, max_x, max_y, "!! WAR REFUGEES ARRIVE !!");
+    }
+    /* --- WAR EVENT OVERLAY --- */
+    if (ui_state->mode == UI_MODE_WAR && war->our_kingdom_attack == 1) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1. Support your kingdom  (risky)");
+        PUSH_STR(string_array, string_array_count, "2. Support the defenders (uncertain)");
+        PUSH_STR(string_array, string_array_count, "3. Ignore it             (rep -0.50, not risky)");
+
+        draw_centered_box(60, 11, max_x, max_y, "!! YOUR KINGDOM JUST STARTED ATTACKING ANOTHER KINGDOM !!");
+    } else if (ui_state->mode == UI_MODE_WAR && war->our_kingdom_attack == 0) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1. Support your kingdom  (not THAT risky)");
+        PUSH_STR(string_array, string_array_count, "2. Support the attackers (risky)");
+        PUSH_STR(string_array, string_array_count, "3. Ignore it             (rep -0.50, not risky)");
+
+        draw_centered_box(60, 11, max_x, max_y, "!! YOUR KINGDOM JUST STARTED BEING ATTACKED BY ANOTHER KINGDOM !!");
     }
 
     refresh();
@@ -443,6 +494,27 @@ static void ui_handle_vomit(int ch, UiState* ui_state, Tavern* b, World* w)
     }
 }
 
+static void ui_handle_war(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    if (ch < '1' || ch > '3') return;
+    handle_war_declaration(ch - '0', b, w);
+    ui_state->war.resolved = 1;
+}
+
+static void ui_handle_war_soldiers(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    if (ch < '1' || ch > '3') return;
+    handle_war_soldiers(ch - '0', b, w);
+    ui_state->war_soldiers.resolved = 1;
+}
+
+static void ui_handle_war_refugees(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    if (ch < '1' || ch > '3') return;
+    handle_war_refugees(ch - '0', b, w);
+    ui_state->war_refugees.resolved = 1;
+}
+
 static void ui_handle_steal(int ch, UiState* ui_state, Tavern* b, World* w)
 {
     switch (ch) {
@@ -477,6 +549,12 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
         ui_handle_vomit(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_STEAL) {
         ui_handle_steal(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_WAR) {
+        ui_handle_war(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_WAR_SOLDIERS) {
+        ui_handle_war_soldiers(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_WAR_REFUGEES) {
+        ui_handle_war_refugees(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_NORMAL) {
         /* In normal mode, handle scrolling */
         if (ch == KEY_UP)

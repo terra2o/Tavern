@@ -11,10 +11,10 @@ void apply_advertisement(int current_day, World *w)
 
 int no_customers_because_no_ads(int current_day, World *w, int customers)
 {
-    if (current_day - w->last_advertised_day >= 7)
+    if (current_day - w->last_advertised_day >= 10)
     {
         lost_customers_ads = customers / 4;
-        char buf[64];
+        char buf[128];
         snprintf(buf, sizeof(buf), "You lost %d customers because you don't advertise enough", lost_customers_ads);
         log_message(&w->log, buf, LOG_WARN);
         return lost_customers_ads;

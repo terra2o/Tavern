@@ -16,6 +16,7 @@
 #include "include/log.h"
 #include "include/ui.h"
 #include "include/save.h"
+#include "include/event.h"
 
 #define GAME_VERSION "0.9.0"
 #define VERSION_STRING "Tavern - Version: " GAME_VERSION
@@ -38,11 +39,11 @@ int main(void) {
 	m.instability = 0.2f;
 
 	Tavern b;
-	b.money = 300.0f;
+	b.money = 700.0f;
 	b.ale_price = 5.0f;
-    b.wine_price = 10.0f;
-	b.ale.amount = 0;
-	b.wine.amount = 0;
+    b.wine_price = 120.0f;
+	b.ale.amount = 10;
+	b.wine.amount = 2;
 	b.total_inventory = 0;
 	b.quality_actual = m.quality;
 	b.quality_perceived = 0.5f;
@@ -71,11 +72,11 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     m.quality = 0.7f;
     m.instability = 0.2f;
 
-	b.money = 300.0f;
+	b.money = 700.0f;
 	b.ale_price = 5.0f;
-    b.wine_price = 10.0f;
-    b.ale.amount = 0;
-	b.wine.amount = 0;
+    b.wine_price = 120.0f;
+    b.ale.amount = 10;
+	b.wine.amount = 2;
     b.quality_actual = m.quality;
     b.quality_perceived = 0.5f;
     b.rumor = 0.5f;
@@ -111,6 +112,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 
 	UiState ui_state;
 	ui_state_init(&ui_state);
+	ui_state.war.our_kingdom_attack = w.our_kingdom_attack;
 
 	while (game_running) {
 		/* PATHWAY MECHANIC*/
@@ -126,7 +128,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 			 action_num++) {
 
 			while (1) {
-				draw_ui(&b, w.day, action_num, actions_per_day, &w, &ui_state);
+				draw_ui(&b, w.day, action_num, actions_per_day, &w, &ui_state, &ui_state.war);
 
 				int ch = getch();
 				napms(16);
@@ -193,12 +195,22 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 		int sales = simulate_day(&b, &w, &p);
 
 		/* Resolve any pending event before the next day */
+        /* War events fire additionally when at war */
+        if (w.at_war && w.pending_event == EVENT_NONE)
+            random_war_event(&w);
+
+        /* Check if war ends */
+        if (w.at_war && w.day >= w.war_end_day) {
+            w.at_war = 0;
+            log_message(&w.log, "The war has ended. Peace returns to the land.", LOG_IMPORTANT);
+        }
+
 		if (w.pending_event == EVENT_FIGHT) {
 			w.pending_event = EVENT_NONE;
 			ui_state.mode = UI_MODE_FIGHT;
 			ui_state.fight.resolved = 0;
 			while (!ui_state.fight.resolved) {
-				draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state);
+				draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state, &ui_state.war);
 				int ch = getch();
 				napms(16);
 				if (ch != ERR)
@@ -210,7 +222,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
             ui_state.mode = UI_MODE_VOMIT;
             ui_state.vomit.resolved = 0;
             while (!ui_state.vomit.resolved) {
-                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state);
+                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state, &ui_state.war);
                 int ch = getch();
                 napms(16);
                 if (ch != ERR)
@@ -222,7 +234,44 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
             ui_state.mode = UI_MODE_STEAL;
             ui_state.steal.resolved = 0;
             while (!ui_state.steal.resolved) {
-                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state);
+                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state, &ui_state.war);
+                int ch = getch();
+                napms(16);
+                if (ch != ERR)
+                    ui_handle_input(ch, &ui_state, &b, &w);
+            }
+            ui_state.mode = UI_MODE_NORMAL;
+        } else if (w.pending_event == EVENT_WAR) {
+            w.pending_event = EVENT_NONE;
+            ui_state.war.our_kingdom_attack = w.our_kingdom_attack;
+            ui_state.mode = UI_MODE_WAR;
+            ui_state.war.resolved = 0;
+            while (!ui_state.war.resolved) {
+                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state, &ui_state.war);
+                int ch = getch();
+                napms(16);
+                if (ch != ERR)
+                    ui_handle_input(ch, &ui_state, &b, &w);
+            }
+            ui_state.mode = UI_MODE_NORMAL;
+        } else if (w.pending_event == EVENT_WAR_SOLDIERS) {
+            w.pending_event = EVENT_NONE;
+            ui_state.mode = UI_MODE_WAR_SOLDIERS;
+            ui_state.war_soldiers.resolved = 0;
+            while (!ui_state.war_soldiers.resolved) {
+                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state, &ui_state.war);
+                int ch = getch();
+                napms(16);
+                if (ch != ERR)
+                    ui_handle_input(ch, &ui_state, &b, &w);
+            }
+            ui_state.mode = UI_MODE_NORMAL;
+        } else if (w.pending_event == EVENT_WAR_REFUGEES) {
+            w.pending_event = EVENT_NONE;
+            ui_state.mode = UI_MODE_WAR_REFUGEES;
+            ui_state.war_refugees.resolved = 0;
+            while (!ui_state.war_refugees.resolved) {
+                draw_ui(&b, w.day, 0, actions_per_day, &w, &ui_state, &ui_state.war);
                 int ch = getch();
                 napms(16);
                 if (ch != ERR)

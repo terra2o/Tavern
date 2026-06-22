@@ -19,7 +19,10 @@ int save_game(const char* path,
     fprintf(f, "day=%d\n", w->day);
     fprintf(f, "population=%d\n", w->population);
     fprintf(f, "last_advertised_day=%d\n", w->last_advertised_day);
-    fprintf(f, "inflation_rate=%.6f\n\n", w->inflation_rate);
+    fprintf(f, "inflation_rate=%.6f\n", w->inflation_rate);
+    fprintf(f, "at_war=%d\n", w->at_war);
+    fprintf(f, "our_kingdom_attack=%d\n", w->our_kingdom_attack);
+    fprintf(f, "war_end_day=%d\n\n", w->war_end_day);
 
     fprintf(f, "[tavern]\n");
     fprintf(f, "money=%.2f\n", b->money);
@@ -103,6 +106,9 @@ int load_game(const char* path,
                 sscanf(line, "population=%d", &w->population);
                 sscanf(line, "last_advertised_day=%d", &w->last_advertised_day);
                 sscanf(line, "inflation_rate=%f", &w->inflation_rate);
+                sscanf(line, "at_war=%d", &w->at_war);
+                sscanf(line, "our_kingdom_attack=%d", &w->our_kingdom_attack);
+                sscanf(line, "war_end_day=%d", &w->war_end_day);
                 break;
 
             case TAVERN:

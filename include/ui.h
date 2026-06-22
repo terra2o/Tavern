@@ -3,7 +3,7 @@
 
 #include "../include/sim.h"
 #include "../include/game_state.h"
-
+#include "../include/event.h"
 
 /* UI state machine modes */
 typedef enum {
@@ -11,7 +11,10 @@ typedef enum {
     UI_MODE_NUMBER_INPUT,
     UI_MODE_FIGHT,
     UI_MODE_VOMIT,
-    UI_MODE_STEAL
+    UI_MODE_STEAL,
+    UI_MODE_WAR,
+    UI_MODE_WAR_SOLDIERS,
+    UI_MODE_WAR_REFUGEES
 } UiMode;
 
 /* ----- STATES ------ */
@@ -31,21 +34,6 @@ typedef struct {
     int is_confirmed; /* 1 = confirmed, -1 = cancelled, 0 = pending */
 } NumberInputState;
 
-/* Fight event state */
-typedef struct {
-    int resolved;
-} FightState;
-
-/* Vomit event state */
-typedef struct {
-    int resolved;
-} VomitState;
-
-/* Steal event state */
-typedef struct {
-    int resolved;
-} StealState;
-
 /* Global UI state for non-blocking input */
 typedef struct {
     UiMode mode;
@@ -55,6 +43,9 @@ typedef struct {
     FightState fight;
     VomitState vomit;
     StealState steal;
+    WarState war;
+    WarSoldiersState war_soldiers;
+    WarRefugeesState war_refugees;
 } UiState;
 
 /* Initialize ncurses color pairs */
@@ -68,7 +59,7 @@ void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset);
 
 /* Draw the entire UI screen with status, actions, stats, and input dialogs */
 void draw_ui(Tavern* b, int day, int action_num, int actions_per_day, 
-             World *w, UiState* ui_state);
+             World *w, UiState* ui_state, WarState* war);
 
 /* Update UI state based on a single character of input (non-blocking) */
 void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w);
