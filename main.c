@@ -115,13 +115,6 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 	ui_state.war.our_kingdom_attack = w.our_kingdom_attack;
 
 	while (game_running) {
-		/* PATHWAY MECHANIC*/
-		// people_fall_because_pathway_dirty(&w, &b, w.day, r.customers);
-
-		// /* Clamp reputation stats between valid ranges */
-		// b.rumor = CLAMP(b.rumor, 0, 1);
-		// b.consistency = CLAMP(b.consistency, 0, 1);
-
 		/* Allow multiple actions per day */
 		for (int action_num = 1;
 			 action_num <= actions_per_day && game_running;
