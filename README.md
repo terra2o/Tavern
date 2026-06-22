@@ -24,9 +24,9 @@ It Features:
 Here's a to-do list for this game:
 
 - ~~Inflation~~
-- Customers doing weird stuff that you have to take care of
-- Bad things happening to your stocks, like thieves stealing them
-- Changes in population, so the potential customer number is not stable.
+- ~~Customers doing weird stuff that you have to take care of~~
+- ~~Bad things happening to your stocks, like thieves stealing them~~
+- ~~Changes in population, so the potential customer number is not stable.~~
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io
