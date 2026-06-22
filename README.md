@@ -21,12 +21,14 @@ It Features:
 - Awesome ncurses UI
 - Dirty pathways (causes customers to fall, you have to clean it!)
 
-Here's a to-do list for this game:
+Here's a to-do list for this game (The ones with strikethrough are done):
 
 - ~~Inflation~~
 - ~~Customers doing weird stuff that you have to take care of~~
 - ~~Bad things happening to your stocks, like thieves stealing them~~
 - ~~Changes in population, so the potential customer number is not stable.~~
+- Make code compatible with c89... maybe?
+- Maybe the kingdom you're in could start wars and that could affect economy and your customers, etc.
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io
