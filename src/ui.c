@@ -97,7 +97,9 @@ void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset)
 void init_colors(void)
 {
     start_color();
+#ifdef TAVERN_DEFAULT_COLORS
     use_default_colors();
+#endif // TAVERN_DEFAULT_COLORS
     init_pair(COLOR_MONEY, COLOR_GREEN, -1);
     init_pair(COLOR_WARNING, COLOR_RED, -1);
     init_pair(COLOR_YELLOW, COLOR_YELLOW, -1);

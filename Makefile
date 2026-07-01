@@ -34,11 +34,11 @@ TARGET = $(BIN_DIR)/tavern
 
 all: debug
 
-debug: CFLAGS := $(STD) $(WARNINGS) $(DBG_FLAGS)
+debug: CFLAGS := $(STD) $(WARNINGS) $(DBG_FLAGS) -DTAVERN_DEFAULT_COLORS
 debug: SAN    := $(DBG_SAN)
 debug: $(TARGET)
 
-release: CFLAGS := $(STD) $(WARNINGS) $(REL_FLAGS)
+release: CFLAGS := $(STD) $(WARNINGS) $(REL_FLAGS) -DTAVERN_DEFAULT_COLORS
 release: SAN    := $(REL_SAN)
 release: $(TARGET)
 
