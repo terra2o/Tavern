@@ -20,7 +20,7 @@ jobs:
             mingw-w64-x86_64-pdcurses
 
       - name: Build
-        run: mingw32-make release CURSES_LIB=-lpdcurses
+        run: mingw32-make release CURSES_LIB=-lpdcurses INCLUDE="-Iinclude -I/mingw64/include/pdcurses"
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v4
