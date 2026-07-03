@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 #include <time.h>
-#include <ncurses.h>
+#include <curses.h>
 #include <string.h>
 #include "include/market.h"
 #include "include/game_state.h"

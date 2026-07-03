@@ -6,7 +6,7 @@
 *
 */
 
-#include <ncurses.h>
+#include <curses.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>

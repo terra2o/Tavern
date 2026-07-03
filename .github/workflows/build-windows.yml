@@ -1,0 +1,29 @@
+name: Windows Build
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-pdcurses
+
+      - name: Build
+        run: mingw32-make release CURSES_LIB=-lpdcurses
+
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: ./bin/tavern.exe

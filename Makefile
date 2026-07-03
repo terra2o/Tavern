@@ -3,7 +3,8 @@ CC := gcc
 WARNINGS := -Wall -Wextra
 STD      := -std=c99
 INCLUDE  := -Iinclude
-LIBS     := -lm -lncurses
+CURSES_LIB := -lncurses
+LIBS     := -lm $(CURSES_LIB)
 
 DBG_FLAGS := -g -O0
 DBG_SAN   := -fsanitize=address,undefined
