@@ -19,8 +19,20 @@ jobs:
             mingw-w64-x86_64-make
             mingw-w64-x86_64-pdcurses
 
+      - name: Locate PDCurses headers
+        id: pdcurses
+        run: |
+          set -e
+          hdr=$(find /mingw64/include -name curses.h | head -n1)
+          if [ -z "$hdr" ]; then
+            echo "curses.h not found under /mingw64/include" >&2
+            find /mingw64/include -iname '*curses*' >&2
+            exit 1
+          fi
+          echo "dir=$(dirname "$hdr")" >> "$GITHUB_OUTPUT"
+
       - name: Build
-        run: mingw32-make release CURSES_LIB=-lpdcurses INCLUDE="-Iinclude -I/mingw64/include/pdcurses"
+        run: mingw32-make release CURSES_LIB=-lpdcurses INCLUDE="-Iinclude -I${{ steps.pdcurses.outputs.dir }}"
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v4
