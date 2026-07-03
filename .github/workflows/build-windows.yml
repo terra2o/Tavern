@@ -31,7 +31,7 @@ jobs:
           cp "$hdr" include/curses.h
 
       - name: Build
-        run: mingw32-make release CURSES_LIB=-lpdcurses_wincon
+        run: mingw32-make release CURSES_LIB="-lpdcurses_wincon -lwinmm"
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v4
