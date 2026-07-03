@@ -33,6 +33,20 @@ typedef struct {
     int resolved;
 } WarRefugeesState;
 
+typedef struct {
+    int resolved;
+} WarAttackState;
+
+typedef struct {
+    FightState fight_state;
+    VomitState vomit_state;
+    StealState steal_state;
+    WarState war_state;
+    WarSoldiersState war_soldiers_state;
+    WarRefugeesState war_refugees_state;
+    WarAttackState war_attack_state;
+} EventStates;
+    
 void event_fight(World* w);
 void event_vomit(World* w);
 void event_steal(World* w);
@@ -48,5 +62,6 @@ int handle_steal(int ch, Tavern* b, World* w);
 void handle_war_declaration(int choice, Tavern* b, World* w);
 void handle_war_soldiers(int choice, Tavern* b, World* w);
 void handle_war_refugees(int choice, Tavern* b, World* w);
+void handle_war_attack(int choice, Tavern* b, World* w);
 
 #endif

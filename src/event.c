@@ -43,12 +43,14 @@ void random_war_event(World* w)
 {
     if (!w->at_war) return;
 
-    int roll = rand() % 3;
+    int roll = rand() % 4;
     if (roll == 0)
         w->pending_event = EVENT_WAR_SOLDIERS;
     else if (roll == 1)
         w->pending_event = EVENT_WAR_REFUGEES;
-    /* roll == 2: nothing happens this day */
+    else if (roll == 2)
+        w->pending_event = EVENT_WAR_ATTACK;
+    /* roll == 3: nothing happens this day */
 }
 
 int event_fight_break_up(Tavern* b, World* w)
@@ -236,6 +238,32 @@ void handle_war_refugees(int choice, Tavern* b, World* w)
         } else {
             b->reputation -= 0.40f;
             log_message(&w->log, "Turning away refugees in wartime. Word spreads you're heartless.", LOG_WARN);
+        }
+        break;
+    }
+    b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+}
+
+/* attackers come by the tavern */
+void handle_war_attack(int choice, Tavern* b, World* w)
+{
+    switch(choice) {
+    case 1: /* play cool */
+        if (rand() % 2 == 0) { /* they don't harm you */
+            log_message(&w->log, "You played cool when the attackers came. They just passed by.", LOG_INFO);
+        } else {
+            b->money -= 500;
+            log_message(&w->log, "They decided to harm your tavern. You pay for the damage.", LOG_WARN);
+        }
+        break;
+    case 2: /* attack them */
+        if (rand() % 2 == 0) { /* they run */
+            b->reputation += 0.50f;
+            log_message(&w->log, "Townsfolk see you attacking the troops, they decide to help you.", LOG_INFO);
+        } else {
+            b->reputation += 0.05f;
+            b->money -= 1000;
+            log_message(&w->log, "You get your ass beaten, still, people saw what you did and you gained some reputation.", LOG_WARN);
         }
         break;
     }

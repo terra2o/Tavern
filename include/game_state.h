@@ -10,7 +10,8 @@ typedef enum {
     EVENT_STEAL,
     EVENT_WAR,
     EVENT_WAR_SOLDIERS,
-    EVENT_WAR_REFUGEES
+    EVENT_WAR_REFUGEES,
+    EVENT_WAR_ATTACK
 } PendingEventType;
 
 typedef struct World {

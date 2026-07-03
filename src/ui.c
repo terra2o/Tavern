@@ -333,6 +333,16 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         draw_centered_box(60, 11, max_x, max_y, "!! YOUR KINGDOM JUST STARTED BEING ATTACKED BY ANOTHER KINGDOM !!");
     }
 
+    if (ui_state->mode == UI_MODE_WAR_ATTACK) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1. Play it cool       (risky)");
+        PUSH_STR(string_array, string_array_count, "2. Go and attack them (very risky)");
+    
+        draw_centered_box(60, 11, max_x, max_y, "!! THE OTHER SIDE'S TROOPS COME BY YOUR TAVERN !!");
+    }
+
     refresh();
 }
 
@@ -516,6 +526,13 @@ static void ui_handle_war_refugees(int ch, UiState* ui_state, Tavern* b, World* 
     ui_state->war_refugees.resolved = 1;
 }
 
+static void ui_handle_war_attack(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    if (ch < '1' || ch > '2') return;
+    handle_war_attack(ch - '0', b, w);
+    ui_state->war_attack.resolved = 1;
+}
+
 static void ui_handle_steal(int ch, UiState* ui_state, Tavern* b, World* w)
 {
     switch (ch) {
@@ -556,6 +573,8 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
         ui_handle_war_soldiers(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_WAR_REFUGEES) {
         ui_handle_war_refugees(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_WAR_ATTACK) {
+        ui_handle_war_attack(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_NORMAL) {
         /* In normal mode, handle scrolling */
         if (ch == KEY_UP)

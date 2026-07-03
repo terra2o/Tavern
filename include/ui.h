@@ -14,7 +14,8 @@ typedef enum {
     UI_MODE_STEAL,
     UI_MODE_WAR,
     UI_MODE_WAR_SOLDIERS,
-    UI_MODE_WAR_REFUGEES
+    UI_MODE_WAR_REFUGEES,
+    UI_MODE_WAR_ATTACK
 } UiMode;
 
 /* ----- STATES ------ */
@@ -46,6 +47,7 @@ typedef struct {
     WarState war;
     WarSoldiersState war_soldiers;
     WarRefugeesState war_refugees;
+    WarAttackState war_attack;
 } UiState;
 
 /* Initialize ncurses color pairs */
