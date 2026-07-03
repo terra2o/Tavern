@@ -22,16 +22,16 @@ jobs:
       - name: Prepare PDCurses header
         run: |
           set -e
-          hdr=$(find /mingw64/include -name curses.h | head -n1)
-          if [ -z "$hdr" ]; then
-            echo "curses.h not found under /mingw64/include" >&2
+          hdr=/mingw64/include/pdcurses.h
+          if [ ! -f "$hdr" ]; then
+            echo "pdcurses.h wrapper not found at $hdr" >&2
             find /mingw64/include -iname '*curses*' >&2
             exit 1
           fi
           cp "$hdr" include/curses.h
 
       - name: Build
-        run: mingw32-make release CURSES_LIB=-lpdcurses
+        run: mingw32-make release CURSES_LIB=-lpdcurses_wincon
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v4
