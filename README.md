@@ -38,6 +38,6 @@ Please comment on the [itch.io page](https://terra2o.itch.io/tavern)! You can al
 ### Needs:
 - GNU Make
 - gcc
-- ncurses
+- ncurses/PDcurses
 
 run `make release` in root directory of the project (where Makefile is located)
