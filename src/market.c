@@ -4,7 +4,7 @@
 #include "../include/pathway.h"
 
 DayResult market_simulate(Tavern* b, World* w) {
-    int customers = (int)(w->population * (0.05f + frand() * 0.10f));
+    int customers = (int)(w->population.count * (0.05f + frand() * 0.10f));
 
     int lost_customers_ads = no_customers_because_no_ads(w->day, w, customers);
     int lost_customers_pathway = people_fall_because_pathway_dirty(w, b, w->day, customers);

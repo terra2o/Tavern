@@ -1,6 +1,8 @@
 #include "../include/sim.h"
+#include "../include/version.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define SAVE_PATH "tavernsavefile.txt"
 
@@ -13,16 +15,25 @@ int save_game(const char* path,
     FILE* f = fopen(path, "w");
     if (!f) return 0;
 
-    fprintf(f, "version=0.12.0\n\n");
+    fprintf(f, "version=%s\n\n", GAME_VERSION);
 
     fprintf(f, "[world]\n");
     fprintf(f, "day=%d\n", w->day);
-    fprintf(f, "population=%d\n", w->population);
+    fprintf(f, "population_count=%d\n", w->population.count);
+    fprintf(f, "population_capacity=%d\n", w->population.capacity);
     fprintf(f, "last_advertised_day=%d\n", w->last_advertised_day);
     fprintf(f, "inflation_rate=%.6f\n", w->inflation_rate);
     fprintf(f, "at_war=%d\n", w->at_war);
     fprintf(f, "our_kingdom_attack=%d\n", w->our_kingdom_attack);
     fprintf(f, "war_end_day=%d\n\n", w->war_end_day);
+
+    fprintf(f, "[population]\n");
+    for (int i = 0; i < w->population.count; i++) {
+        Citizen* c = &w->population.citizens[i];
+        fprintf(f, "citizen=%d,%f,%f,%d,%d\n",
+                c->age, c->thirst, c->wealth, c->homeless, c->alive);
+    }
+    fprintf(f, "\n");
 
     fprintf(f, "[tavern]\n");
     fprintf(f, "money=%.2f\n", b->money);
@@ -66,18 +77,21 @@ int load_game(const char* path,
     /*
     why we do this before loading
     is because if we don't write
-    0 to all; 
+    0 to all;
      * some fields might not appear
      * some values might fail to parse
      * some fields might be added later
-    */     
+    */
+    free(w->population.citizens);
     memset(w, 0, sizeof(*w));
     memset(b, 0, sizeof(*b));
     memset(m, 0, sizeof(*m));
     memset(p, 0, sizeof(*p));
 
+    int population_capacity = 100000;
+
     char line[256];
-    enum { NONE, WORLD, TAVERN, MERCHANT, PAYMENT } section = NONE;
+    enum { NONE, WORLD, POPULATION, TAVERN, MERCHANT, PAYMENT } section = NONE;
 
     while (fgets(line, sizeof(line), f)) {
         if (line[0] == '\n' || line[0] == '#')
@@ -85,6 +99,11 @@ int load_game(const char* path,
 
         if (strcmp(line, "[world]\n") == 0) {
             section = WORLD;
+            continue;
+        }
+        if (strcmp(line, "[population]\n") == 0) {
+            section = POPULATION;
+            population_init(&w->population, population_capacity);
             continue;
         }
         if (strcmp(line, "[tavern]\n") == 0) {
@@ -103,13 +122,23 @@ int load_game(const char* path,
         switch (section) {
             case WORLD:
                 sscanf(line, "day=%d", &w->day);
-                sscanf(line, "population=%d", &w->population);
+                sscanf(line, "population_capacity=%d", &population_capacity);
                 sscanf(line, "last_advertised_day=%d", &w->last_advertised_day);
                 sscanf(line, "inflation_rate=%f", &w->inflation_rate);
                 sscanf(line, "at_war=%d", &w->at_war);
                 sscanf(line, "our_kingdom_attack=%d", &w->our_kingdom_attack);
                 sscanf(line, "war_end_day=%d", &w->war_end_day);
                 break;
+
+            case POPULATION: {
+                Citizen c;
+                if (sscanf(line, "citizen=%d,%f,%f,%d,%d",
+                           &c.age, &c.thirst, &c.wealth, &c.homeless, &c.alive) == 5
+                    && w->population.count < w->population.capacity) {
+                    w->population.citizens[w->population.count++] = c;
+                }
+                break;
+            }
 
             case TAVERN:
                 sscanf(line, "money=%f", &b->money);

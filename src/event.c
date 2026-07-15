@@ -214,7 +214,10 @@ void handle_war_refugees(int choice, Tavern* b, World* w)
     case 1: /* welcome them */
         if (rand() % 10 < 6) { /* 60% */
             b->reputation += 0.25f;
-            w->population += 15;
+            for (int i = 0; i < 15; i++) {
+                citizen_spawn(&w->population);
+                w->population.citizens[w->population.count - 1].homeless = 1;
+            }
             log_message(&w->log, "You sheltered the refugees. Word of your kindness spreads.", LOG_INFO);
         } else {
             b->reputation -= 0.10f;

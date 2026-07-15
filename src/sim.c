@@ -34,7 +34,7 @@ void apply_action(Tavern* b, Action a, World* w, int amount) {
 		case ACT_ADVERTISE:
 			b->money -= amount;
             // 24 because i tried balancing it.
-			b->rumor += (CLAMP(amount / (w->population / 24), 0.0, 1.0));
+			b->rumor += (CLAMP(amount / (w->population.count / 24), 0.0, 1.0));
             apply_advertisement(w->day, w);
 			break;
 
@@ -79,7 +79,9 @@ void process_payment(World* w, PeriodicPayment* p, Tavern* b, int current_day) {
 int simulate_day(Tavern* b, World* w, PeriodicPayment* p) {
 	// Rent Logic
 	process_payment(w, p, b, w->day);
-    populate(w);
+    int new_citizens = (int)(frand() * 5.0f) + 1;
+    for (int i = 0; i < new_citizens; i++) citizen_spawn(&w->population);
+    population_tick(w);
     // Should inflation_tick(w); be exactly here? not sure...
 	inflation_tick(w);
 	random_event(w);
