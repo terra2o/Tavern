@@ -17,8 +17,8 @@
 #include "include/ui.h"
 #include "include/save.h"
 #include "include/event.h"
+#include "include/version.h"
 
-#define GAME_VERSION "0.12.0"
 #define VERSION_STRING "Tavern - Version: " GAME_VERSION
 
 
@@ -44,7 +44,8 @@ int main(void) {
 
 	World w = {0};
 	w.day = 0;
-    w.population = 150;
+    population_init(&w.population, 100000);
+    for (int i = 0; i < 150; i++) citizen_spawn(&w.population);
     w.last_advertised_day = 0;
     w.inflation_rate = 1.0f;
 
@@ -79,7 +80,6 @@ int main(void) {
 
 if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
     w.day = 0;
-    w.population = 150;
     w.last_advertised_day = 0;
     w.inflation_rate = 1.0f;
 
@@ -239,6 +239,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 		log_message(&w.log, buf_l, LOG_IMPORTANT);
 	}
 
+	population_free(&w.population);
 	endwin();
 
 	return 0;
