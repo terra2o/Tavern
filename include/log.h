@@ -1,7 +1,7 @@
 #ifndef LOG_H
 #define LOG_H
 
-#define LOG_HEIGHT 10
+#define LOG_HEIGHT 13
 #define LOG_LINES 100
 #define LOG_LINE_LEN 128
 

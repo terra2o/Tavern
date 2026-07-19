@@ -18,6 +18,17 @@ typedef enum {
     UI_MODE_WAR_ATTACK
 } UiMode;
 
+/* Describes the number-input prompt an action needs before it can
+   run. Look these up with find_action_input_spec() instead of
+   hardcoding per-action branches. */
+typedef struct {
+    Action action;
+    const char* prompt;
+    float min_val;
+    float max_val;
+    int is_float;
+} ActionInputSpec;
+
 /* ----- STATES ------ */
 
 /* Number input state */
@@ -73,7 +84,10 @@ void ui_start_number_input(UiState* ui_state, const char* prompt,
 /* Process a confirmed action with its parameter */
 void ui_process_action(UiState* ui_state, Tavern* b, World* w);
 
-/* Read an action key press (1-9 or Q) - only called in NORMAL mode */
+/* Read an action key press (1-9 or Q). Only called in NORMAL mode. */
 Action read_action(int ch);
+
+/* Look up the input spec for an action, or NULL if it runs instantly */
+const ActionInputSpec* find_action_input_spec(Action a);
 
 #endif /* UI_H */

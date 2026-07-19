@@ -9,12 +9,18 @@
 #include <stdlib.h>
 #include "../include/event.h"
 #include "../include/sim.h"
+#include "../include/sim_random.h"
 
 #define FIGHT_MEDICAL_COST 200.0f
 
-/* these are just "simple" events, for example, war isn't here */
-static char array_of_events[4][32] = {"fight", "vomit", "steal"};
-#define NUM_EVENTS (sizeof(array_of_events) / sizeof(array_of_events[0]))
+/* Chance added per rowdy/destitute visitor that day, capped below. A
+   quiet day with nobody rowdy or broke simply can't trigger these. */
+#define FIGHT_CHANCE_PER_ROWDY 0.05f
+#define FIGHT_CHANCE_CAP 0.6f
+#define VOMIT_CHANCE_PER_ROWDY 0.04f
+#define VOMIT_CHANCE_CAP 0.5f
+#define STEAL_CHANCE_PER_DESTITUTE 0.06f
+#define STEAL_CHANCE_CAP 0.6f
 
 void event_fight(World* w)
 {
@@ -71,8 +77,7 @@ int event_fight_break_up(Tavern* b, World* w)
 
 int handle_steal(int ch, Tavern* b, World* w)
 {
-    switch (ch)
-    {
+    switch (ch) {
         case(1):
             if (rand() % 2 == 0) {
                 b->reputation += 0.30f;
@@ -100,7 +105,7 @@ int handle_steal(int ch, Tavern* b, World* w)
             break; 
         case(3):
             b->money -= 100;
-            b->ale.amount -= 5;
+            b->drinks[DRINK_ALE].inventory.amount -= 5;
             log_message(&w->log, "You ignored the thief. People didn't see anything. You obviously lost some booze, and money.", LOG_INFO);
             return 1;
             break; 
@@ -274,26 +279,26 @@ void handle_war_attack(int choice, Tavern* b, World* w)
 }
 void random_event(World* w)
 {
-    int chance = rand() % 4; /* 25% chance */
     int chance_war = rand() % 10; /* 10% chance */
 
-    if (chance == 3) /* the 25% chance was "true" and now we do random events */ { 
-        int event_index = rand() % NUM_EVENTS;
-
-        switch (event_index) {
-        case 0:
-            event_fight(w);
-            break;
-        case 1:
-            event_vomit(w);
-            break;
-        case 2:
-            event_steal(w);
-            break;
-        }
-    }
     /* only start a new war if not already at war */
-    else if (chance_war == 9 && !w->at_war) {
+    if (chance_war == 9 && !w->at_war)
         event_war(w);
+}
+
+void evaluate_customer_events(World* w, const DayResult* day)
+{
+    if (w->pending_event != EVENT_NONE) return;
+
+    float fight_chance = CLAMP(day->rowdy_visitors * FIGHT_CHANCE_PER_ROWDY, 0.0f, FIGHT_CHANCE_CAP);
+    float vomit_chance = CLAMP(day->rowdy_visitors * VOMIT_CHANCE_PER_ROWDY, 0.0f, VOMIT_CHANCE_CAP);
+    float steal_chance = CLAMP(day->destitute_visitors * STEAL_CHANCE_PER_DESTITUTE, 0.0f, STEAL_CHANCE_CAP);
+
+    if (fight_chance > 0.0f && frand() < fight_chance) {
+        event_fight(w);
+    } else if (vomit_chance > 0.0f && frand() < vomit_chance) {
+        event_vomit(w);
+    } else if (steal_chance > 0.0f && frand() < steal_chance) {
+        event_steal(w);
     }
 }

@@ -4,6 +4,9 @@
 #include "log.h"
 #include "population.h"
 
+#define MAX_TAVERNS 8
+#define MAX_MERCHANTS 8
+
 typedef enum {
     EVENT_NONE,
     EVENT_FIGHT,
@@ -26,6 +29,19 @@ typedef struct World {
     int at_war;              /* 1 if currently at war */
     int our_kingdom_attack;  /* 1 if our kingdom is the attacker, 0 if defender */
     int war_end_day;         /* day the war ends */
+
+    /* Pools of every tavern/merchant that exists, player-owned or not.
+       Types are forward-declared (not #include "sim.h"/"merchant.h") to
+       avoid a circular include, since sim.h includes this header for World. */
+    struct Tavern* taverns;
+    int tavern_count;
+    int tavern_capacity;
+
+    struct Merchant* merchants;
+    int merchant_count;
+    int merchant_capacity;
+
+    int player_tavern_id; /* index into taverns[] the player currently controls */
 } World;
 
 #endif

@@ -1,16 +1,15 @@
 /*
 *
 * main.c for Tavern
-* 
+*
 * Copyright 2026 terra2o
-* 
+*
 */
 
 #include <stdlib.h>
 #include <time.h>
 #include <curses.h>
 #include <string.h>
-#include "include/market.h"
 #include "include/game_state.h"
 #include "include/sim.h"
 #include "include/log.h"
@@ -20,7 +19,6 @@
 #include "include/version.h"
 
 #define VERSION_STRING "Tavern - Version: " GAME_VERSION
-
 
 static void event_handler(Tavern* b, World* w, UiState* ui_state, int actions_per_day, UiMode mode, int* resolved)
 {
@@ -37,78 +35,78 @@ static void event_handler(Tavern* b, World* w, UiState* ui_state, int actions_pe
     ui_state->mode = UI_MODE_NORMAL;
 }
 
-int main(void) {
+/* Fresh tavern with default starting stats, supplied by merchant_id.
+   w is only used for w->day, to schedule the first rent payment. */
+static Tavern make_starter_tavern(const World* w, int merchant_id, const Merchant* m)
+{
+    Tavern b = {0};
+    b.money = 700.0f;
+    b.drinks[DRINK_ALE].price = 5.0f;
+    b.drinks[DRINK_WINE].price = 120.0f;
+    b.drinks[DRINK_ALE].inventory.amount = 10;
+    b.drinks[DRINK_WINE].inventory.amount = 2;
+    b.last_drink_price[DRINK_ALE] = 1.0f;
+    b.last_drink_price[DRINK_WINE] = 1.0f;
+    b.quality_actual = m->quality;
+    b.quality_perceived = 0.5f;
+    b.rumor = 0.5f;
+    b.consistency = 1.0f;
+    b.handsomeness = 0.6f;
+    b.reputation = 0.5f;
+    b.supplier_id = merchant_id;
+    b.last_pathway_clean_day = 0;
+    b.rent.pay_period = 30;
+    b.rent.next_payment_day = w->day + b.rent.pay_period;
+    b.rent.rent_amount = 1500;
+    b.rent.base_rent = 1500;
+    return b;
+}
+
+static void init_new_game(World* w)
+{
+    w->day = 0;
+    w->last_advertised_day = 0;
+    w->inflation_rate = 1.0f;
+
+    world_merchants_init(w, MAX_MERCHANTS);
+    world_taverns_init(w, MAX_TAVERNS);
+
+    Merchant m_init = {0};
+    m_init.drink_price[DRINK_ALE] = 5.0f;
+    m_init.drink_price[DRINK_WINE] = 90.0f;
+    m_init.quality = 0.7f;
+    m_init.instability = 0.2f;
+    int merchant_id = world_add_merchant(w, m_init);
+
+    Tavern b_init = make_starter_tavern(w, merchant_id, &m_init);
+    w->player_tavern_id = world_add_tavern(w, b_init);
+
+    /* Second tavern, sharing the same merchant for now, just to prove
+       the pool holds more than one and survives save/load. It isn't
+       simulated or shown in the UI yet. That's the competitor AI
+       work we're deferring until the "who do citizens visit" design
+       is settled. */
+    Tavern rival = make_starter_tavern(w, merchant_id, &m_init);
+    rival.money = 500.0f;
+    world_add_tavern(w, rival);
+
+    world_relink_suppliers(w);
+}
+
+int main(void)
+{
     srand(time(NULL));
-    
-    #define SAVE_PATH "tavernsavefile.txt"
 
     World w = {0};
-    w.day = 0;
     population_init(&w.population, 100000);
     for (int i = 0; i < 150; i++) citizen_spawn(&w.population);
-    w.last_advertised_day = 0;
-    w.inflation_rate = 1.0f;
 
-    Merchant m;
-    m.price_per_ale = 5.0f;
-    m.price_per_wine = 90.0f;
-    m.quality = 0.7f;
-    m.instability = 0.2f;
+    if (!load_game(SAVE_PATH, &w)) {
+        init_new_game(&w);
+        save_game(SAVE_PATH, &w);
+    }
 
-    Tavern b;
-    b.money = 700.0f;
-    b.ale_price = 5.0f;
-    b.wine_price = 120.0f;
-    b.ale.amount = 10;
-    b.wine.amount = 2;
-    b.total_inventory = 0;
-    b.quality_actual = m.quality;
-    b.quality_perceived = 0.5f;
-    b.rumor = 0.5f;
-    b.consistency = 1.0f;
-    b.handsomeness = 0.6f;
-    b.reputation = 0.5f;
-    b.supplier = &m;
-    b.last_pathway_clean_day = 0;
-
-    PeriodicPayment p;
-    p.pay_period = 30;
-    p.next_payment_day = w.day + p.pay_period;
-    p.rent_amount = 1500;
-    p.base_rent = 1500;
-
-
-if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
-    w.day = 0;
-    w.last_advertised_day = 0;
-    w.inflation_rate = 1.0f;
-
-    m.price_per_ale = 5.0f;
-    m.price_per_wine = 90.0f;
-    m.quality = 0.7f;
-    m.instability = 0.2f;
-
-    b.money = 700.0f;
-    b.ale_price = 5.0f;
-    b.wine_price = 120.0f;
-    b.ale.amount = 10;
-    b.wine.amount = 2;
-    b.quality_actual = m.quality;
-    b.quality_perceived = 0.5f;
-    b.rumor = 0.5f;
-    b.consistency = 1.0f;
-    b.handsomeness = 0.6f;
-    b.reputation = 0.5f;
-    b.supplier = &m;
-    b.last_pathway_clean_day = 0;
-
-    p.pay_period = 30;
-    p.next_payment_day = w.day + p.pay_period;
-    p.rent_amount = 1500;
-    p.base_rent = 1500;
-
-    save_game(SAVE_PATH, &w, &b, &m, &p);
-}
+    Tavern* b = &w.taverns[w.player_tavern_id];
 
     int actions_per_day = 2;
 
@@ -122,9 +120,14 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
 
     int game_running = 1;
     char version[64];
-    snprintf(version, sizeof(version), "%s", VERSION_STRING); 
+    snprintf(version, sizeof(version), "%s", VERSION_STRING);
     log_message(&w.log, version, LOG_IMPORTANT);
     log_message(&w.log, "Welcome! Press a key to start the best tavern simulation ever...", LOG_IMPORTANT);
+
+    char pool_buf[64];
+    snprintf(pool_buf, sizeof(pool_buf), "Taverns in world: %d | Merchants: %d",
+             w.tavern_count, w.merchant_count);
+    log_message(&w.log, pool_buf, LOG_INFO);
 
     UiState ui_state;
     ui_state_init(&ui_state);
@@ -137,23 +140,21 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
              action_num++) {
 
             while (1) {
-                draw_ui(&b, w.day, action_num, actions_per_day, &w, &ui_state, &ui_state.war);
+                draw_ui(b, w.day, action_num, actions_per_day, &w, &ui_state, &ui_state.war);
 
                 int ch = getch();
                 napms(16);
 
-                if (ch != ERR) {
-                    ui_handle_input(ch, &ui_state, &b, &w);
-                }
+                if (ch != ERR)
+                    ui_handle_input(ch, &ui_state, b, &w);
 
                 if (ui_state.number_input.is_confirmed != 0) {
-                    ui_process_action(&ui_state, &b, &w);
+                    ui_process_action(&ui_state, b, &w);
                     break;
                 }
 
-                if (ui_state.mode != UI_MODE_NORMAL) {
+                if (ui_state.mode != UI_MODE_NORMAL)
                     continue;
-                }
 
                 Action choice = read_action(ch);
 
@@ -161,36 +162,20 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
                     game_running = 0;
                     break;
                 }
-                else if (choice == (Action)-2) {
+                else if (choice == (Action)-2)
                     continue;
-                }
-                else if (choice == ACT_ADVERTISE) {
+                else if (find_action_input_spec(choice) != NULL) {
+                    const ActionInputSpec* spec = find_action_input_spec(choice);
                     ui_state.pending_action = choice;
-                    ui_start_number_input(&ui_state, "Advertise budget (1-10000): ", 1, 10000, 0);
-                }
-                else if (choice == ACT_ADJUST_ALE_PRICE) {
-                    ui_state.pending_action = choice;
-                    ui_start_number_input(&ui_state, "New ale price (e.g. 3.50): ", 0.1f, 500.0f, 1);
-                }
-                else if (choice == ACT_ADJUST_WINE_PRICE) {
-                    ui_state.pending_action = choice;
-                    ui_start_number_input(&ui_state, "New wine price (e.g. 5.00): ", 0.1f, 500.0f, 1);
-                }
-                else if (choice == ACT_BUY_ALE) {
-                    ui_state.pending_action = choice;
-                    ui_start_number_input(&ui_state, "Buy how many mugs? ", 1, 10000, 0);
-                }
-                else if (choice == ACT_BUY_WINE) {
-                    ui_state.pending_action = choice;
-                    ui_start_number_input(&ui_state, "Buy how many glasses? ", 1, 10000, 0);
+                    ui_start_number_input(&ui_state, spec->prompt, spec->min_val, spec->max_val, spec->is_float);
                 }
                 else if (choice == ACT_CLEAN_PATHWAY) {
-                    apply_action(&b, choice, &w, 0);
+                    apply_action(b, choice, &w, 0);
                     log_message(&w.log, "Cleaned pathway.", LOG_INFO);
                     break;
                 }
                 else {
-                    apply_action(&b, choice, &w, 0);
+                    apply_action(b, choice, &w, 0);
                     log_message(&w.log, "Action completed.", LOG_INFO);
                     break;
                 }
@@ -201,7 +186,7 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
             break;
 
         /* End of day simulation (ADVANCES w.day) */
-        int sales = simulate_day(&b, &w, &p);
+        int sales = simulate_day(&w);
 
         /* Resolve any pending event before the next day */
         /* War events fire additionally when at war */
@@ -215,31 +200,34 @@ if (!load_game(SAVE_PATH, &w, &b, &m, &p)) {
         }
 
         if (w.pending_event == EVENT_FIGHT)
-            event_handler(&b, &w, &ui_state, actions_per_day, UI_MODE_FIGHT, &ui_state.fight.resolved);
+            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_FIGHT, &ui_state.fight.resolved);
         else if (w.pending_event == EVENT_VOMIT)
-            event_handler(&b, &w, &ui_state, actions_per_day, UI_MODE_VOMIT, &ui_state.vomit.resolved);
+            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_VOMIT, &ui_state.vomit.resolved);
         else if (w.pending_event == EVENT_STEAL)
-            event_handler(&b, &w, &ui_state, actions_per_day, UI_MODE_STEAL, &ui_state.steal.resolved);
+            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_STEAL, &ui_state.steal.resolved);
         else if (w.pending_event == EVENT_WAR) {
             ui_state.war.our_kingdom_attack = w.our_kingdom_attack;
-            event_handler(&b, &w, &ui_state, actions_per_day, UI_MODE_WAR, &ui_state.war.resolved);
+            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_WAR, &ui_state.war.resolved);
         } else if (w.pending_event == EVENT_WAR_SOLDIERS)
-            event_handler(&b, &w, &ui_state, actions_per_day, UI_MODE_WAR_SOLDIERS, &ui_state.war_soldiers.resolved);
+            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_WAR_SOLDIERS, &ui_state.war_soldiers.resolved);
         else if (w.pending_event == EVENT_WAR_REFUGEES)
-            event_handler(&b, &w, &ui_state, actions_per_day, UI_MODE_WAR_REFUGEES, &ui_state.war_refugees.resolved);
+            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_WAR_REFUGEES, &ui_state.war_refugees.resolved);
         else if (w.pending_event == EVENT_WAR_ATTACK)
-            event_handler(&b, &w, &ui_state, actions_per_day, UI_MODE_WAR_ATTACK, &ui_state.war_attack.resolved);
+            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_WAR_ATTACK, &ui_state.war_attack.resolved);
 
-        save_game(SAVE_PATH, &w, &b, &m, &p);
+        save_game(SAVE_PATH, &w);
 
         char buf_l[256];
         snprintf(buf_l, sizeof(buf_l),
                  "End of day %d: %d sales | Money: $%.2f | Ale: %d | Wine: %d | Rep: %.2f",
-                 w.day, sales, b.money, b.ale.amount, b.wine.amount, b.reputation);
+                 w.day, sales, b->money, b->drinks[DRINK_ALE].inventory.amount,
+                 b->drinks[DRINK_WINE].inventory.amount, b->reputation);
         log_message(&w.log, buf_l, LOG_IMPORTANT);
     }
 
     population_free(&w.population);
+    world_taverns_free(&w);
+    world_merchants_free(&w);
     endwin();
 
     return 0;

@@ -4,13 +4,99 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define SAVE_PATH "tavernsavefile.txt"
+static void write_tavern(FILE* f, int index, const Tavern* b)
+{
+    fprintf(f, "tavern=%d,%.2f,%d", index, b->money, b->supplier_id);
+    for (int d = 0; d < DRINK_COUNT; d++) {
+        fprintf(f, ",%f,%d,%d",
+                b->drinks[d].price, b->drinks[d].inventory.amount,
+                b->drinks[d].inventory.expiration_date);
+    }
+    for (int d = 0; d < DRINK_COUNT; d++)
+        fprintf(f, ",%f", b->last_drink_price[d]);
+    fprintf(f, ",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%f,%f\n",
+            b->quality_actual, b->quality_perceived, b->rumor, b->consistency,
+            b->handsomeness, b->reputation, b->last_pathway_clean_day,
+            b->rent.pay_period, b->rent.next_payment_day,
+            b->rent.rent_amount, b->rent.base_rent);
+}
 
-int save_game(const char* path,
-              const World* w,
-              const Tavern* b,
-              const Merchant* m,
-              const PeriodicPayment* p)
+/* Returns 1 on success. Advances *cursor past everything it consumed. */
+static int read_tavern(char* line, World* w)
+{
+    if (strncmp(line, "tavern=", 7) != 0) return 0;
+    char* cursor = line + 7;
+
+    Tavern b = {0};
+    int index, n;
+    if (sscanf(cursor, "%d,%f,%d%n", &index, &b.money, &b.supplier_id, &n) != 3) return 0;
+    cursor += n;
+
+    for (int d = 0; d < DRINK_COUNT; d++) {
+        if (*cursor != ',') return 0;
+        cursor++;
+        int n2;
+        if (sscanf(cursor, "%f,%d,%d%n",
+                   &b.drinks[d].price, &b.drinks[d].inventory.amount,
+                   &b.drinks[d].inventory.expiration_date, &n2) != 3) return 0;
+        cursor += n2;
+    }
+
+    for (int d = 0; d < DRINK_COUNT; d++) {
+        if (*cursor != ',') return 0;
+        cursor++;
+        int n2;
+        if (sscanf(cursor, "%f%n", &b.last_drink_price[d], &n2) != 1) return 0;
+        cursor += n2;
+    }
+
+    if (*cursor != ',') return 0;
+    cursor++;
+    if (sscanf(cursor, "%f,%f,%f,%f,%f,%f,%d,%d,%d,%f,%f",
+               &b.quality_actual, &b.quality_perceived, &b.rumor, &b.consistency,
+               &b.handsomeness, &b.reputation, &b.last_pathway_clean_day,
+               &b.rent.pay_period, &b.rent.next_payment_day,
+               &b.rent.rent_amount, &b.rent.base_rent) != 11) return 0;
+
+    world_add_tavern(w, b);
+    return 1;
+}
+
+static void write_merchant(FILE* f, int index, const Merchant* m)
+{
+    fprintf(f, "merchant=%d", index);
+    for (int d = 0; d < DRINK_COUNT; d++)
+        fprintf(f, ",%f", m->drink_price[d]);
+    fprintf(f, ",%.3f,%.3f\n", m->quality, m->instability);
+}
+
+static int read_merchant(char* line, World* w)
+{
+    if (strncmp(line, "merchant=", 9) != 0) return 0;
+    char* cursor = line + 9;
+
+    Merchant m = {0};
+    int index, n;
+    if (sscanf(cursor, "%d%n", &index, &n) != 1) return 0;
+    cursor += n;
+
+    for (int d = 0; d < DRINK_COUNT; d++) {
+        if (*cursor != ',') return 0;
+        cursor++;
+        int n2;
+        if (sscanf(cursor, "%f%n", &m.drink_price[d], &n2) != 1) return 0;
+        cursor += n2;
+    }
+
+    if (*cursor != ',') return 0;
+    cursor++;
+    if (sscanf(cursor, "%f,%f", &m.quality, &m.instability) != 2) return 0;
+
+    world_add_merchant(w, m);
+    return 1;
+}
+
+int save_game(const char* path, const World* w)
 {
     FILE* f = fopen(path, "w");
     if (!f) return 0;
@@ -25,51 +111,36 @@ int save_game(const char* path,
     fprintf(f, "inflation_rate=%.6f\n", w->inflation_rate);
     fprintf(f, "at_war=%d\n", w->at_war);
     fprintf(f, "our_kingdom_attack=%d\n", w->our_kingdom_attack);
-    fprintf(f, "war_end_day=%d\n\n", w->war_end_day);
+    fprintf(f, "war_end_day=%d\n", w->war_end_day);
+    fprintf(f, "player_tavern_id=%d\n\n", w->player_tavern_id);
 
     fprintf(f, "[population]\n");
     for (int i = 0; i < w->population.count; i++) {
         Citizen* c = &w->population.citizens[i];
-        fprintf(f, "citizen=%d,%f,%f,%d,%d\n",
-                c->age, c->thirst, c->wealth, c->homeless, c->alive);
+        fprintf(f, "citizen=%d,%f,%f,%f,%f,%f,%d,%d",
+                c->age, c->thirst, c->wealth, c->addiction, c->income, c->loyalty,
+                c->last_drink_day, c->favorite_tavern_id);
+        for (int d = 0; d < DRINK_COUNT; d++)
+            fprintf(f, ",%f", c->drink_preference[d]);
+        fprintf(f, ",%f,%d,%d\n", c->health, c->homeless, c->alive);
     }
     fprintf(f, "\n");
 
-    fprintf(f, "[tavern]\n");
-    fprintf(f, "money=%.2f\n", b->money);
-    fprintf(f, "ale_price=%.2f\n", b->ale_price);
-    fprintf(f, "wine_price=%.2f\n", b->wine_price);
-    fprintf(f, "ale=%d\n", b->ale.amount);
-    fprintf(f, "wine=%d\n", b->wine.amount);
-    fprintf(f, "quality_actual=%.3f\n", b->quality_actual);
-    fprintf(f, "quality_perceived=%.3f\n", b->quality_perceived);
-    fprintf(f, "rumor=%.3f\n", b->rumor);
-    fprintf(f, "consistency=%.3f\n", b->consistency);
-    fprintf(f, "handsomeness=%.3f\n", b->handsomeness);
-    fprintf(f, "reputation=%.3f\n\n", b->reputation);
+    fprintf(f, "[merchants]\n");
+    for (int i = 0; i < w->merchant_count; i++)
+        write_merchant(f, i, &w->merchants[i]);
+    fprintf(f, "\n");
 
-    fprintf(f, "[merchant]\n");
-    fprintf(f, "price_per_ale=%.3f\n", m->price_per_ale);
-    fprintf(f, "price_per_wine=%.3f\n", m->price_per_wine);
-    fprintf(f, "quality=%.3f\n", m->quality);
-    fprintf(f, "instability=%.3f\n\n", m->instability);
-
-    fprintf(f, "[payment]\n");
-    fprintf(f, "pay_period=%d\n", p->pay_period);
-    fprintf(f, "next_payment_day=%d\n", p->next_payment_day);
-    fprintf(f, "rent_amount=%f\n", p->rent_amount);
-    fprintf(f, "base_rent=%f\n", p->base_rent);
+    fprintf(f, "[taverns]\n");
+    for (int i = 0; i < w->tavern_count; i++)
+        write_tavern(f, i, &w->taverns[i]);
 
     fclose(f);
     return 1;
 }
 
 
-int load_game(const char* path,
-              World* w,
-              Tavern* b,
-              Merchant* m,
-              PeriodicPayment* p)
+int load_game(const char* path, World* w)
 {
     FILE* f = fopen(path, "r");
     if (!f) return 0;
@@ -83,15 +154,17 @@ int load_game(const char* path,
      * some fields might be added later
     */
     free(w->population.citizens);
+    world_taverns_free(w);
+    world_merchants_free(w);
     memset(w, 0, sizeof(*w));
-    memset(b, 0, sizeof(*b));
-    memset(m, 0, sizeof(*m));
-    memset(p, 0, sizeof(*p));
 
     int population_capacity = 100000;
 
-    char line[256];
-    enum { NONE, WORLD, POPULATION, TAVERN, MERCHANT, PAYMENT } section = NONE;
+    world_taverns_init(w, MAX_TAVERNS);
+    world_merchants_init(w, MAX_MERCHANTS);
+
+    char line[512];
+    enum { NONE, WORLD, POPULATION, MERCHANTS, TAVERNS } section = NONE;
 
     while (fgets(line, sizeof(line), f)) {
         if (line[0] == '\n' || line[0] == '#')
@@ -106,16 +179,12 @@ int load_game(const char* path,
             population_init(&w->population, population_capacity);
             continue;
         }
-        if (strcmp(line, "[tavern]\n") == 0) {
-            section = TAVERN;
+        if (strcmp(line, "[merchants]\n") == 0) {
+            section = MERCHANTS;
             continue;
         }
-        if (strcmp(line, "[merchant]\n") == 0) {
-            section = MERCHANT;
-            continue;
-        }
-        if (strcmp(line, "[payment]\n") == 0) {
-            section = PAYMENT;
+        if (strcmp(line, "[taverns]\n") == 0) {
+            section = TAVERNS;
             continue;
         }
 
@@ -128,44 +197,43 @@ int load_game(const char* path,
                 sscanf(line, "at_war=%d", &w->at_war);
                 sscanf(line, "our_kingdom_attack=%d", &w->our_kingdom_attack);
                 sscanf(line, "war_end_day=%d", &w->war_end_day);
+                sscanf(line, "player_tavern_id=%d", &w->player_tavern_id);
                 break;
 
             case POPULATION: {
                 Citizen c;
-                if (sscanf(line, "citizen=%d,%f,%f,%d,%d",
-                           &c.age, &c.thirst, &c.wealth, &c.homeless, &c.alive) == 5
+                if (strncmp(line, "citizen=", 8) != 0) break;
+                char* cursor = line + 8;
+                int n;
+                if (sscanf(cursor, "%d,%f,%f,%f,%f,%f,%d,%d%n",
+                           &c.age, &c.thirst, &c.wealth, &c.addiction, &c.income, &c.loyalty,
+                           &c.last_drink_day, &c.favorite_tavern_id, &n) != 8) break;
+                cursor += n;
+
+                int ok = 1;
+                for (int d = 0; d < DRINK_COUNT; d++) {
+                    if (*cursor != ',') { ok = 0; break; }
+                    cursor++;
+                    int n2;
+                    if (sscanf(cursor, "%f%n", &c.drink_preference[d], &n2) != 1) { ok = 0; break; }
+                    cursor += n2;
+                }
+                if (!ok || *cursor != ',') break;
+                cursor++;
+
+                if (sscanf(cursor, "%f,%d,%d", &c.health, &c.homeless, &c.alive) == 3
                     && w->population.count < w->population.capacity) {
                     w->population.citizens[w->population.count++] = c;
                 }
                 break;
             }
 
-            case TAVERN:
-                sscanf(line, "money=%f", &b->money);
-                sscanf(line, "ale_price=%f", &b->ale_price);
-                sscanf(line, "wine_price=%f", &b->wine_price);
-                sscanf(line, "ale=%d", &b->ale.amount);
-                sscanf(line, "wine=%d", &b->wine.amount);
-                sscanf(line, "quality_actual=%f", &b->quality_actual);
-                sscanf(line, "quality_perceived=%f", &b->quality_perceived);
-                sscanf(line, "rumor=%f", &b->rumor);
-                sscanf(line, "consistency=%f", &b->consistency);
-                sscanf(line, "handsomeness=%f", &b->handsomeness);
-                sscanf(line, "reputation=%f", &b->reputation);
+            case MERCHANTS:
+                read_merchant(line, w);
                 break;
 
-            case MERCHANT:
-                sscanf(line, "price_per_ale=%f", &m->price_per_ale);
-                sscanf(line, "price_per_wine=%f", &m->price_per_wine);
-                sscanf(line, "quality=%f", &m->quality);
-                sscanf(line, "instability=%f", &m->instability);
-                break;
-
-            case PAYMENT:
-                sscanf(line, "pay_period=%d", &p->pay_period);
-                sscanf(line, "next_payment_day=%d", &p->next_payment_day);
-                sscanf(line, "rent_amount=%f", &p->rent_amount);
-                sscanf(line, "base_rent=%f", &p->base_rent);
+            case TAVERNS:
+                read_tavern(line, w);
                 break;
 
             default:
@@ -175,18 +243,21 @@ int load_game(const char* path,
 
     fclose(f);
 
-    /* Re-link pointers */
-    b->supplier = m;
+    population_recount_alive(&w->population);
+    world_relink_suppliers(w);
 
     /* Defensive clamping */
-    b->rumor = CLAMP(b->rumor, 0, 1);
-    b->consistency = CLAMP(b->consistency, 0, 1);
-    b->reputation = CLAMP(b->reputation, 0, 1);
+    for (int i = 0; i < w->tavern_count; i++) {
+        Tavern* b = &w->taverns[i];
+        b->rumor = CLAMP(b->rumor, 0, 1);
+        b->consistency = CLAMP(b->consistency, 0, 1);
+        b->reputation = CLAMP(b->reputation, 0, 1);
+        if (b->rent.base_rent <= 0.0f)
+            b->rent.base_rent = b->rent.rent_amount > 0.0f ? b->rent.rent_amount : 1500.0f;
+    }
 
     /* Guard for saves that predate inflation */
     if (w->inflation_rate <= 0.0f) w->inflation_rate = 1.0f;
-    if (p->base_rent <= 0.0f) p->base_rent = p->rent_amount > 0.0f ? p->rent_amount : 1500.0f;
 
-    return 1;
+    return w->tavern_count > 0;
 }
-

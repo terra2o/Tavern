@@ -2,10 +2,10 @@
 #define MERCHANT_H
 
 #include <math.h>
+#include "drink.h"
 
 typedef struct Merchant{
-	float price_per_ale;
-	float price_per_wine;
+	float drink_price[DRINK_COUNT];
 	float quality;
 	float instability;
 } Merchant;
