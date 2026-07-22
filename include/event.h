@@ -60,7 +60,7 @@ void random_war_event(World* w);
 /* Fight/vomit/steal odds driven by who actually showed up: taverns
    with rowdier or more destitute visitors that day are more likely to
    have trouble, instead of a flat daily die roll. */
-void evaluate_customer_events(World* w, const DayResult* day);
+void evaluate_customer_events(World* w, int tavern_id, const DayResult* day);
 
 /* Attempt to break up the fight yourself. Returns 1 on success, 0 on failure. */
 int event_fight_break_up(Tavern* b, World* w);

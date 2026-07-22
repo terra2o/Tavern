@@ -200,9 +200,13 @@ int simulate_day(World* w)
         tavern_post_market(&w->taverns[i], &results[i]);
 
     /* Whether a fight/vomit/steal event fires today is driven by who
-       actually showed up at the player's tavern */
-    evaluate_customer_events(w, &results[w->player_tavern_id]);
-
+       actually showed up at each tavern. The player's tavern surfaces
+       an interactive prompt; rival taverns resolve automatically. */
+    {
+        int tavern;
+        for (tavern = 0; tavern < w->tavern_count; tavern++)
+            evaluate_customer_events(w, tavern, &results[tavern]);
+    }
     log_daily_summary(w, results);
 
     int sales_today = 0;

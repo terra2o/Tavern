@@ -6,6 +6,7 @@
 *
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include "../include/event.h"
 #include "../include/sim.h"
@@ -277,6 +278,7 @@ void handle_war_attack(int choice, Tavern* b, World* w)
     }
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
 }
+
 void random_event(World* w)
 {
     int chance_war = rand() % 10; /* 10% chance */
@@ -286,19 +288,93 @@ void random_event(World* w)
         event_war(w);
 }
 
-void evaluate_customer_events(World* w, const DayResult* day)
+/* AI taverns have no interactive UI, so a fight/vomit/steal there is
+   resolved on the spot with a random choice instead of going through
+   World.pending_event (which only the player's tavern can present). */
+static void ai_handle_fight(Tavern* b, World* w, int tavern_id)
 {
-    if (w->pending_event != EVENT_NONE) return;
+    char buf[128];
+    int choice = rand() % 3;
 
+    if (choice == 0) {
+        b->money -= 50.0f;
+        b->reputation -= 0.15f;
+    } else if (choice == 1) {
+        if (rand() % 2 == 0) {
+            b->reputation += 0.30f;
+            b->rumor += 0.30f;
+        } else {
+            b->money -= FIGHT_MEDICAL_COST;
+        }
+    } else {
+        b->reputation -= 0.30f;
+    }
+    b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+    b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
+
+    snprintf(buf, sizeof(buf), "A brawl broke out at tavern #%d.", tavern_id);
+    log_message(&w->log, buf, LOG_INFO);
+}
+
+static void ai_handle_vomit(Tavern* b, World* w, int tavern_id)
+{
+    char buf[128];
+    int choice = rand() % 3;
+
+    if (choice == 0) {
+        b->handsomeness -= 0.20f;
+        b->reputation -= 0.30f;
+        b->rumor -= 0.30f;
+    } else if (choice == 1) {
+        b->money -= 500.0f;
+        b->reputation += 0.30f;
+        b->rumor += 0.30f;
+    } else {
+        b->reputation -= 0.30f;
+    }
+    b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+    b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
+
+    snprintf(buf, sizeof(buf), "Someone puked all over tavern #%d.", tavern_id);
+    log_message(&w->log, buf, LOG_INFO);
+}
+
+static void ai_handle_steal(Tavern* b, World* w, int tavern_id)
+{
+    char buf[128];
+    int choice = rand() % 3;
+
+    handle_steal(choice + 1, b, w);
+
+    snprintf(buf, sizeof(buf), "A thief tried their luck at tavern #%d.", tavern_id);
+    log_message(&w->log, buf, LOG_INFO);
+}
+
+void evaluate_customer_events(World* w, int tavern_id, const DayResult* day)
+{
+    Tavern* b = &w->taverns[tavern_id];
     float fight_chance = CLAMP(day->rowdy_visitors * FIGHT_CHANCE_PER_ROWDY, 0.0f, FIGHT_CHANCE_CAP);
     float vomit_chance = CLAMP(day->rowdy_visitors * VOMIT_CHANCE_PER_ROWDY, 0.0f, VOMIT_CHANCE_CAP);
     float steal_chance = CLAMP(day->destitute_visitors * STEAL_CHANCE_PER_DESTITUTE, 0.0f, STEAL_CHANCE_CAP);
 
+    if (tavern_id == w->player_tavern_id) {
+        if (w->pending_event != EVENT_NONE) return;
+
+        if (fight_chance > 0.0f && frand() < fight_chance) {
+            event_fight(w);
+        } else if (vomit_chance > 0.0f && frand() < vomit_chance) {
+            event_vomit(w);
+        } else if (steal_chance > 0.0f && frand() < steal_chance) {
+            event_steal(w);
+        }
+        return;
+    }
+
     if (fight_chance > 0.0f && frand() < fight_chance) {
-        event_fight(w);
+        ai_handle_fight(b, w, tavern_id);
     } else if (vomit_chance > 0.0f && frand() < vomit_chance) {
-        event_vomit(w);
+        ai_handle_vomit(b, w, tavern_id);
     } else if (steal_chance > 0.0f && frand() < steal_chance) {
-        event_steal(w);
+        ai_handle_steal(b, w, tavern_id);
     }
 }
