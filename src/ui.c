@@ -45,6 +45,7 @@ void ui_state_init(UiState* state)
     state->fight.resolved = 0;
     state->vomit.resolved = 0;
     state->steal.resolved = 0;
+    state->supplier.selected = 0;
 }
 
 int color_for_severity(LogSeverity s) 
@@ -226,12 +227,13 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(6, right_start + 2, "5 - Advertise");
     mvprintw(7, right_start + 2, "6 - Clean pathway");
     mvprintw(8, right_start + 2, "7 - Buy ale stock");
-    mvprintw(9, right_start + 2, "   (%.2f per mug)", b->supplier->drink_price[DRINK_ALE]);
+    mvprintw(9, right_start + 2, "   (%.2f per mug)", merchant_quote_price(b->supplier, b->id, DRINK_ALE));
     mvprintw(10, right_start + 2, "8 - Buy wine stock");
-    mvprintw(11, right_start + 2, "   (%.2f per glass)", b->supplier->drink_price[DRINK_WINE]);
+    mvprintw(11, right_start + 2, "   (%.2f per glass)", merchant_quote_price(b->supplier, b->id, DRINK_WINE));
     mvprintw(12, right_start + 2, "W - Adjust ale price");
     mvprintw(13, right_start + 2, "E - Adjust wine price");
-    mvprintw(14, right_start + 2, "Q - Quit game");
+    mvprintw(14, right_start + 2, "S - View/switch suppliers");
+    mvprintw(15, right_start + 2, "Q - Quit game");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
@@ -334,6 +336,27 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         PUSH_STR(string_array, string_array_count, "3. Ignore it             (rep -0.50, not risky)");
 
         draw_centered_box(60, 11, max_x, max_y, "!! YOUR KINGDOM JUST STARTED BEING ATTACKED BY ANOTHER KINGDOM !!");
+    }
+
+    /* --- SUPPLIER SCREEN --- */
+    if (ui_state->mode == UI_MODE_SUPPLIER) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "UP/DOWN to pick, ENTER to switch, ESC to cancel.");
+        PUSH_STR(string_array, string_array_count, "");
+        for (int i = 0; i < w->merchant_count; i++) {
+            const Merchant* m = &w->merchants[i];
+            char line[160];
+            char marker = (i == ui_state->supplier.selected) ? '>' : ' ';
+            char current = (i == b->supplier_id) ? '*' : ' ';
+            snprintf(line, sizeof(line),
+                     "%c%c #%d  qual %.2f  risk %.2f  ale $%.2f (stock %d)  wine $%.2f (stock %d)  favor %.2f",
+                     marker, current, i, m->quality, m->instability,
+                     merchant_quote_price(m, b->id, DRINK_ALE), merchant_available_stock(m, DRINK_ALE),
+                     merchant_quote_price(m, b->id, DRINK_WINE), merchant_available_stock(m, DRINK_WINE),
+                     m->tavern_favor[b->id]);
+            PUSH_STR(string_array, string_array_count, line);
+        }
+        draw_centered_box(78, 8 + w->merchant_count, max_x, max_y, "SUPPLIERS  (* = current)");
     }
 
     if (ui_state->mode == UI_MODE_WAR_ATTACK) {
@@ -538,6 +561,31 @@ static void ui_handle_steal(int ch, UiState* ui_state, Tavern* b, World* w)
         break;
     }
 }
+static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    SupplierState* s = &ui_state->supplier;
+
+    if (ch == 27) { /* ESC */
+        ui_state->mode = UI_MODE_NORMAL;
+    }
+    else if (ch == KEY_UP) {
+        if (s->selected > 0) s->selected--;
+    }
+    else if (ch == KEY_DOWN) {
+        if (s->selected < w->merchant_count - 1) s->selected++;
+    }
+    else if (ch == '\n' || ch == '\r') {
+        if (s->selected != b->supplier_id && s->selected >= 0 && s->selected < w->merchant_count) {
+            char buf[128];
+            b->supplier_id = s->selected;
+            b->supplier = &w->merchants[s->selected];
+            snprintf(buf, sizeof(buf), "Switched suppliers to merchant #%d.", s->selected);
+            log_message(&w->log, buf, LOG_INFO);
+        }
+        ui_state->mode = UI_MODE_NORMAL;
+    }
+}
+
 /* Updates UI state based on input, handling mode-specific logic. */
 void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
 {
@@ -563,6 +611,8 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
         ui_handle_war_refugees(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_WAR_ATTACK) {
         ui_handle_war_attack(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_SUPPLIER) {
+        ui_handle_supplier(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_NORMAL) {
         /* In normal mode, handle scrolling */
         if (ch == KEY_UP)
@@ -668,16 +718,27 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
 
             case ACT_BUY_ALE:
             {
-                float cost = input_value * b->supplier->drink_price[DRINK_ALE];
+                int in_stock = merchant_available_stock(b->supplier, DRINK_ALE);
+                float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_ALE);
+                int want = input_value < in_stock ? input_value : in_stock;
+
+                if (want <= 0) {
+                    log_message(&w->log, "The merchant is out of ale today.", LOG_INFO);
+                    break;
+                }
+
+                float cost = want * unit_price;
 
                 if (b->money < cost) {
-                    int affordable = (int)(b->money / b->supplier->drink_price[DRINK_ALE]);
+                    int affordable = (int)(b->money / unit_price);
+                    if (affordable > want) affordable = want;
                     if (affordable <= 0)
                         log_message(&w->log, "Cannot afford any ale.", LOG_INFO);
                     else {
-                        b->money -= affordable * b->supplier->drink_price[DRINK_ALE];
+                        b->money -= affordable * unit_price;
                         b->drinks[DRINK_ALE].inventory.amount += affordable;
                         b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+                        merchant_record_purchase(b->supplier, b->id, DRINK_ALE, affordable);
 
                         char buf[128];
                         snprintf(buf, sizeof(buf), "Bought %d mugs", affordable);
@@ -686,13 +747,14 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
                 }
                 else {
                     b->money -= cost;
-                    b->drinks[DRINK_ALE].inventory.amount += input_value;
+                    b->drinks[DRINK_ALE].inventory.amount += want;
                     b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+                    merchant_record_purchase(b->supplier, b->id, DRINK_ALE, want);
 
                     char buf[128];
                     snprintf(buf, sizeof(buf),
                              "Bought %d mugs for $%.2f",
-                             input_value, cost);
+                             want, cost);
                     log_message(&w->log, buf, LOG_INFO);
                 }
                 break;
@@ -700,16 +762,27 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
 
             case ACT_BUY_WINE:
             {
-                float cost = input_value * b->supplier->drink_price[DRINK_WINE];
+                int in_stock = merchant_available_stock(b->supplier, DRINK_WINE);
+                float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_WINE);
+                int want = input_value < in_stock ? input_value : in_stock;
+
+                if (want <= 0) {
+                    log_message(&w->log, "The merchant is out of wine today.", LOG_INFO);
+                    break;
+                }
+
+                float cost = want * unit_price;
 
                 if (b->money < cost) {
-                    int affordable = (int)(b->money / b->supplier->drink_price[DRINK_WINE]);
+                    int affordable = (int)(b->money / unit_price);
+                    if (affordable > want) affordable = want;
                     if (affordable <= 0)
                         log_message(&w->log, "Cannot afford any wine.", LOG_INFO);
                     else {
-                        b->money -= affordable * b->supplier->drink_price[DRINK_WINE];
+                        b->money -= affordable * unit_price;
                         b->drinks[DRINK_WINE].inventory.amount += affordable;
                         b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+                        merchant_record_purchase(b->supplier, b->id, DRINK_WINE, affordable);
 
                         char buf[128];
                         snprintf(buf, sizeof(buf), "Bought %d glasses", affordable);
@@ -718,13 +791,14 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
                 }
                 else {
                     b->money -= cost;
-                    b->drinks[DRINK_WINE].inventory.amount += input_value;
+                    b->drinks[DRINK_WINE].inventory.amount += want;
                     b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+                    merchant_record_purchase(b->supplier, b->id, DRINK_WINE, want);
 
                     char buf[128];
                     snprintf(buf, sizeof(buf),
                              "Bought %d glasses for $%.2f",
-                             input_value, cost);
+                             want, cost);
                     log_message(&w->log, buf, LOG_INFO);
                 }
                 break;

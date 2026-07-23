@@ -67,7 +67,12 @@ static void write_merchant(FILE* f, int index, const Merchant* m)
     fprintf(f, "merchant=%d", index);
     for (int d = 0; d < DRINK_COUNT; d++)
         fprintf(f, ",%f", m->drink_price[d]);
-    fprintf(f, ",%.3f,%.3f\n", m->quality, m->instability);
+    fprintf(f, ",%.3f,%.3f", m->quality, m->instability);
+    for (int d = 0; d < DRINK_COUNT; d++)
+        fprintf(f, ",%f,%f,%f", m->stock[d], m->restock_rate[d], m->max_stock[d]);
+    for (int t = 0; t < MAX_TAVERNS; t++)
+        fprintf(f, ",%f", m->tavern_favor[t]);
+    fprintf(f, "\n");
 }
 
 static int read_merchant(char* line, World* w)
@@ -90,7 +95,26 @@ static int read_merchant(char* line, World* w)
 
     if (*cursor != ',') return 0;
     cursor++;
-    if (sscanf(cursor, "%f,%f", &m.quality, &m.instability) != 2) return 0;
+    int n2;
+    if (sscanf(cursor, "%f,%f%n", &m.quality, &m.instability, &n2) != 2) return 0;
+    cursor += n2;
+
+    for (int d = 0; d < DRINK_COUNT; d++) {
+        if (*cursor != ',') return 0;
+        cursor++;
+        int n3;
+        if (sscanf(cursor, "%f,%f,%f%n",
+                   &m.stock[d], &m.restock_rate[d], &m.max_stock[d], &n3) != 3) return 0;
+        cursor += n3;
+    }
+
+    for (int t = 0; t < MAX_TAVERNS; t++) {
+        if (*cursor != ',') return 0;
+        cursor++;
+        int n4;
+        if (sscanf(cursor, "%f%n", &m.tavern_favor[t], &n4) != 1) return 0;
+        cursor += n4;
+    }
 
     world_add_merchant(w, m);
     return 1;
@@ -242,6 +266,25 @@ int load_game(const char* path, World* w)
     }
 
     fclose(f);
+
+    /* Saves from before the merchant stock/favor fields existed will
+       fail every read_merchant() call above (old [merchants] lines end
+       right after quality/instability, where the new parser expects
+       more fields), leaving merchant_count at 0 and every tavern's
+       supplier NULL. Rather than crash on first use of b->supplier,
+       fall back to one freshly-balanced merchant so an old save still
+       loads, just with a reset supply economy. */
+    if (w->merchant_count == 0) {
+        Merchant fallback = {0};
+        fallback.drink_price[DRINK_ALE] = 5.0f;
+        fallback.drink_price[DRINK_WINE] = 90.0f;
+        fallback.quality = 0.7f;
+        fallback.instability = 0.2f;
+        merchant_init_default_stock(&fallback);
+        world_add_merchant(w, fallback);
+        for (int i = 0; i < w->tavern_count; i++)
+            w->taverns[i].supplier_id = 0;
+    }
 
     population_recount_alive(&w->population);
     world_relink_suppliers(w);

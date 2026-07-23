@@ -17,6 +17,11 @@ typedef struct PeriodicPayment {
 } PeriodicPayment;
 
 typedef struct Tavern{
+    /* Index of this tavern in World.taverns[]; used to look itself up
+       in a Merchant's per-tavern arrays (favor, etc). Derived from
+       load/creation order, not itself persisted in the save file. */
+    int id;
+
     float money;
 
     int total_inventory;

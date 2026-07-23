@@ -76,17 +76,24 @@ static void init_new_game(World* w)
     m_init.drink_price[DRINK_WINE] = 90.0f;
     m_init.quality = 0.7f;
     m_init.instability = 0.2f;
+    merchant_init_default_stock(&m_init);
     int merchant_id = world_add_merchant(w, m_init);
 
     Tavern b_init = make_starter_tavern(w, merchant_id, &m_init);
     w->player_tavern_id = world_add_tavern(w, b_init);
 
-    /* Second tavern, sharing the same merchant for now, just to prove
-       the pool holds more than one and survives save/load. It isn't
-       simulated or shown in the UI yet. That's the competitor AI
-       work we're deferring until the "who do citizens visit" design
-       is settled. */
-    Tavern rival = make_starter_tavern(w, merchant_id, &m_init);
+    /* Rival's supplier: cheaper on ale but riskier and lower quality,
+       so the two starter taverns draw from genuinely different
+       merchants instead of sharing one. */
+    Merchant m_rival = {0};
+    m_rival.drink_price[DRINK_ALE] = 4.5f;
+    m_rival.drink_price[DRINK_WINE] = 90.0f;
+    m_rival.quality = 0.6f;
+    m_rival.instability = 0.35f;
+    merchant_init_default_stock(&m_rival);
+    int rival_merchant_id = world_add_merchant(w, m_rival);
+
+    Tavern rival = make_starter_tavern(w, rival_merchant_id, &m_rival);
     rival.money = 500.0f;
     world_add_tavern(w, rival);
 
@@ -155,6 +162,12 @@ int main(void)
 
                 if (ui_state.mode != UI_MODE_NORMAL)
                     continue;
+
+                if (ch == 's' || ch == 'S') {
+                    ui_state.mode = UI_MODE_SUPPLIER;
+                    ui_state.supplier.selected = b->supplier_id;
+                    continue;
+                }
 
                 Action choice = read_action(ch);
 

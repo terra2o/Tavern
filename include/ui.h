@@ -15,7 +15,8 @@ typedef enum {
     UI_MODE_WAR,
     UI_MODE_WAR_SOLDIERS,
     UI_MODE_WAR_REFUGEES,
-    UI_MODE_WAR_ATTACK
+    UI_MODE_WAR_ATTACK,
+    UI_MODE_SUPPLIER
 } UiMode;
 
 /* Describes the number-input prompt an action needs before it can
@@ -59,6 +60,7 @@ typedef struct {
     WarSoldiersState war_soldiers;
     WarRefugeesState war_refugees;
     WarAttackState war_attack;
+    SupplierState supplier;
 } UiState;
 
 /* Initialize ncurses color pairs */

@@ -37,6 +37,13 @@ typedef struct {
     int resolved;
 } WarAttackState;
 
+/* Not an "event" like the others (nothing forces it open, no
+   resolution outcome) - just tracks which row is highlighted while
+   the player browses/switches suppliers. */
+typedef struct {
+    int selected; /* index into w->merchants[] currently highlighted */
+} SupplierState;
+
 typedef struct {
     FightState fight_state;
     VomitState vomit_state;

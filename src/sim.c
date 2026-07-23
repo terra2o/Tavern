@@ -44,18 +44,27 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
             apply_advertisement(w->day, w);
             break;
 
-        case ACT_BUY_ALE:
-            b->drinks[DRINK_ALE].inventory.amount += amount;
-            b->money -= amount * b->supplier->drink_price[DRINK_ALE];
+        case ACT_BUY_ALE: {
+            int qty = amount < merchant_available_stock(b->supplier, DRINK_ALE)
+                ? amount : merchant_available_stock(b->supplier, DRINK_ALE);
+            float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_ALE);
+            b->drinks[DRINK_ALE].inventory.amount += qty;
+            b->money -= qty * unit_price;
             b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+            merchant_record_purchase(b->supplier, b->id, DRINK_ALE, qty);
             break;
+        }
 
-
-        case ACT_BUY_WINE:
-            b->drinks[DRINK_WINE].inventory.amount += amount;
-            b->money -= amount * b->supplier->drink_price[DRINK_WINE];
+        case ACT_BUY_WINE: {
+            int qty = amount < merchant_available_stock(b->supplier, DRINK_WINE)
+                ? amount : merchant_available_stock(b->supplier, DRINK_WINE);
+            float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_WINE);
+            b->drinks[DRINK_WINE].inventory.amount += qty;
+            b->money -= qty * unit_price;
             b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+            merchant_record_purchase(b->supplier, b->id, DRINK_WINE, qty);
             break;
+        }
 
         case ACT_ADJUST_ALE_PRICE:
             /* handled outside apply_action */
@@ -133,6 +142,65 @@ static void tavern_post_market(Tavern* b, const DayResult* day)
     reputation_tick(b, sales_today);
 }
 
+#define AI_SUPPLIER_RECONSIDER_CHANCE 0.1f
+#define AI_SUPPLIER_SWITCH_THRESHOLD  0.05f
+#define AI_SUPPLIER_WEIGHT_QUALITY    1.0f
+#define AI_SUPPLIER_WEIGHT_PRICE      0.6f
+#define AI_SUPPLIER_WEIGHT_FAVOR      0.3f
+#define AI_SUPPLIER_WEIGHT_RISK       0.4f
+
+/* Higher is more attractive. Price is normalized against avg_ale_price
+   (the pool's average ale price) so it's comparable across merchants
+   regardless of ale's raw price scale. */
+static float supplier_score(const Merchant* m, int tavern_id, float avg_ale_price)
+{
+    float price_ratio = avg_ale_price > 0.0f
+        ? merchant_quote_price(m, tavern_id, DRINK_ALE) / avg_ale_price
+        : 1.0f;
+    return m->quality * AI_SUPPLIER_WEIGHT_QUALITY
+         - price_ratio * AI_SUPPLIER_WEIGHT_PRICE
+         + m->tavern_favor[tavern_id] * AI_SUPPLIER_WEIGHT_FAVOR
+         - m->instability * AI_SUPPLIER_WEIGHT_RISK;
+}
+
+/* Rarely (not every day, to avoid thrashing), compares every merchant
+   in the pool against the current supplier and switches if a clearly
+   better deal exists. */
+static void ai_tavern_reconsider_supplier(Tavern* b, World* w)
+{
+    int i;
+    float avg_ale_price;
+    float current_score;
+    int best_id;
+    float best_score;
+
+    if (frand() >= AI_SUPPLIER_RECONSIDER_CHANCE || w->merchant_count <= 1) return;
+
+    avg_ale_price = 0.0f;
+    for (i = 0; i < w->merchant_count; i++)
+        avg_ale_price += w->merchants[i].drink_price[DRINK_ALE];
+    avg_ale_price /= w->merchant_count;
+
+    current_score = supplier_score(b->supplier, b->id, avg_ale_price);
+    best_id = b->supplier_id;
+    best_score = current_score;
+    for (i = 0; i < w->merchant_count; i++) {
+        float s = supplier_score(&w->merchants[i], b->id, avg_ale_price);
+        if (s > best_score) {
+            best_score = s;
+            best_id = i;
+        }
+    }
+
+    if (best_id != b->supplier_id && best_score - current_score > AI_SUPPLIER_SWITCH_THRESHOLD) {
+        char buf[128];
+        b->supplier_id = best_id;
+        b->supplier = &w->merchants[best_id];
+        snprintf(buf, sizeof(buf), "Tavern #%d switched to a new supplier.", b->id);
+        log_message(&w->log, buf, LOG_INFO);
+    }
+}
+
 /* rival AI: presses a handful of the same buttons the
    player has, at random, plus a couple of heuristics apply_action
    doesn't cover (pricing and restocking) */
@@ -143,20 +211,25 @@ static void ai_tavern_decide(Tavern* b, World* w)
     int buy;
     float cost;
 
+    ai_tavern_reconsider_supplier(b, w);
+
     /* Track supplier cost with a randomized markup instead of a fixed price */
     for (d = 0; d < DRINK_COUNT; d++) {
-        target = b->supplier->drink_price[d] * (1.5f + frand() * 0.5f);
+        target = merchant_quote_price(b->supplier, b->id, d) * (1.5f + frand() * 0.5f);
         b->drinks[d].price += (target - b->drinks[d].price) * 0.2f;
     }
 
-    /* Restock whichever drink is running low, if affordable */
+    /* Restock whichever drink is running low, if affordable and in stock */
     for (d = 0; d < DRINK_COUNT; d++) {
         if (b->drinks[d].inventory.amount < 5) {
             buy = 20;
-            cost = buy * b->supplier->drink_price[d];
-            if (b->money >= cost) {
+            if (buy > merchant_available_stock(b->supplier, d))
+                buy = merchant_available_stock(b->supplier, d);
+            cost = buy * merchant_quote_price(b->supplier, b->id, d);
+            if (buy > 0 && b->money >= cost) {
                 b->drinks[d].inventory.amount += buy;
                 b->money -= cost;
+                merchant_record_purchase(b->supplier, b->id, d, buy);
             }
         }
     }
@@ -258,6 +331,7 @@ void world_taverns_free(World* w)
 int world_add_tavern(World* w, Tavern t)
 {
     if (w->tavern_count >= w->tavern_capacity) return -1;
+    t.id = w->tavern_count;
     w->taverns[w->tavern_count] = t;
     return w->tavern_count++;
 }
