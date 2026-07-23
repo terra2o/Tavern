@@ -236,6 +236,7 @@ void handle_war_refugees(int choice, Tavern* b, World* w)
             b->reputation -= 0.05f;
             log_message(&w->log, "You charged the refugees. Business is business.", LOG_INFO);
         } else {
+            b->money += 300.0f;
             b->reputation -= 0.25f;
             log_message(&w->log, "Word got out you squeezed desperate refugees for coin. People are disgusted.", LOG_WARN);
         }
