@@ -32,9 +32,11 @@ Here's a to-do list for this game (The ones with strikethrough are done):
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io
-Please comment on the [itch.io page](https://terra2o.itch.io/tavern)! You can also get pre-built binaries there for macOS and Linux.
+Please comment on the [itch.io page](https://terra2o.itch.io/tavern)! You can also get pre-built binaries there for macOS, Linux, and Windows.
+
 
 ## Build
+### For building on older systems, check out [COMPILING.md](./COMPILING.md).
 ### Needs:
 - GNU Make
 - gcc

@@ -76,9 +76,9 @@ void process_payment(World* w, Tavern* b, int current_day)
     PeriodicPayment* p = &b->rent;
     if (current_day >= p->next_payment_day) {
         float actual_rent = p->base_rent * w->inflation_rate;
+        char buf[256];
         b->money -= actual_rent;
         p->next_payment_day += p->pay_period;
-        char buf[256];
         snprintf(buf, sizeof(buf), "Paid rent: $%.2f", actual_rent);
         log_message(&w->log, buf, LOG_IMPORTANT);
     }
@@ -91,12 +91,15 @@ void process_payment(World* w, Tavern* b, int current_day)
    instead of going through whichever tavern happens to call it. */
 static void world_tick(World* w)
 {
-    int new_citizens = (int)(frand() * 5.0f) + 1;
-    for (int i = 0; i < new_citizens; i++) citizen_spawn(&w->population);
+    int new_citizens;
+    int i;
+
+    new_citizens = (int)(frand() * 5.0f) + 1;
+    for (i = 0; i < new_citizens; i++) citizen_spawn(&w->population);
     population_tick(w);
     inflation_tick(w);
     random_event(w);
-    for (int i = 0; i < w->merchant_count; i++)
+    for (i = 0; i < w->merchant_count; i++)
         update_merchant(&w->merchants[i], w->inflation_rate);
 }
 
@@ -107,11 +110,15 @@ static void world_tick(World* w)
    taverns, not visiting each independently). */
 static void tavern_post_market(Tavern* b, const DayResult* day)
 {
+    int d;
+    int sales_today;
+    float price_change;
+
     b->quality_actual = b->supplier->quality;
 
     /* Consistency punishes wild price changes */
-    for (int d = 0; d < DRINK_COUNT; d++) {
-        float price_change = fabsf(b->drinks[d].price - b->last_drink_price[d]);
+    for (d = 0; d < DRINK_COUNT; d++) {
+        price_change = fabsf(b->drinks[d].price - b->last_drink_price[d]);
         b->consistency -= price_change * 0.5f;
         b->last_drink_price[d] = b->drinks[d].price;
     }
@@ -120,8 +127,8 @@ static void tavern_post_market(Tavern* b, const DayResult* day)
     b->rumor = CLAMP(b->rumor, 0, 1);
     b->consistency = CLAMP(b->consistency, 0, 1);
 
-    int sales_today = 0;
-    for (int d = 0; d < DRINK_COUNT; d++) sales_today += day->sales[d];
+    sales_today = 0;
+    for (d = 0; d < DRINK_COUNT; d++) sales_today += day->sales[d];
     b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
     reputation_tick(b, sales_today);
 }
@@ -131,17 +138,22 @@ static void tavern_post_market(Tavern* b, const DayResult* day)
    doesn't cover (pricing and restocking) */
 static void ai_tavern_decide(Tavern* b, World* w)
 {
+    int d;
+    float target;
+    int buy;
+    float cost;
+
     /* Track supplier cost with a randomized markup instead of a fixed price */
-    for (int d = 0; d < DRINK_COUNT; d++) {
-        float target = b->supplier->drink_price[d] * (1.5f + frand() * 0.5f);
+    for (d = 0; d < DRINK_COUNT; d++) {
+        target = b->supplier->drink_price[d] * (1.5f + frand() * 0.5f);
         b->drinks[d].price += (target - b->drinks[d].price) * 0.2f;
     }
 
     /* Restock whichever drink is running low, if affordable */
-    for (int d = 0; d < DRINK_COUNT; d++) {
+    for (d = 0; d < DRINK_COUNT; d++) {
         if (b->drinks[d].inventory.amount < 5) {
-            int buy = 20;
-            float cost = buy * b->supplier->drink_price[d];
+            buy = 20;
+            cost = buy * b->supplier->drink_price[d];
             if (b->money >= cost) {
                 b->drinks[d].inventory.amount += buy;
                 b->money -= cost;
@@ -162,18 +174,20 @@ static void ai_tavern_decide(Tavern* b, World* w)
 static void log_daily_summary(World* w, DayResult* results)
 {
     char buf[160];
+    int best_rival = -1;
+    int best_rival_customers = -1;
+    int player_customers;
+    int i;
 
     if (w->tavern_count > 1) {
-        int best_rival = -1;
-        int best_rival_customers = -1;
-        for (int i = 0; i < w->tavern_count; i++) {
+        for (i = 0; i < w->tavern_count; i++) {
             if (i == w->player_tavern_id) continue;
             if (results[i].customers > best_rival_customers) {
                 best_rival_customers = results[i].customers;
                 best_rival = i;
             }
         }
-        int player_customers = results[w->player_tavern_id].customers;
+        player_customers = results[w->player_tavern_id].customers;
         snprintf(buf, sizeof(buf), "Competition: you drew %d customers, tavern #%d drew %d.",
                  player_customers, best_rival, best_rival_customers);
         log_message(&w->log, buf, LOG_INFO);
@@ -182,35 +196,37 @@ static void log_daily_summary(World* w, DayResult* results)
 
 int simulate_day(World* w)
 {
+    DayResult results[MAX_TAVERNS] = {0};
+    int sales_today;
+    int i;
+    int d;
+    int tavern;
+
     world_tick(w);
 
     /* Every tavern settles its state (price, stock, cleanliness) before
        the shared market pass, since citizens are choosing between
        taverns, not visiting each one independently. */
-    for (int i = 0; i < w->tavern_count; i++) {
+    for (i = 0; i < w->tavern_count; i++) {
         if (i != w->player_tavern_id)
             ai_tavern_decide(&w->taverns[i], w);
         process_payment(w, &w->taverns[i], w->day);
     }
 
-    DayResult results[MAX_TAVERNS] = {0};
     market_simulate_all(w, results);
 
-    for (int i = 0; i < w->tavern_count; i++)
+    for (i = 0; i < w->tavern_count; i++)
         tavern_post_market(&w->taverns[i], &results[i]);
 
     /* Whether a fight/vomit/steal event fires today is driven by who
        actually showed up at each tavern. The player's tavern surfaces
        an interactive prompt; rival taverns resolve automatically. */
-    {
-        int tavern;
-        for (tavern = 0; tavern < w->tavern_count; tavern++)
-            evaluate_customer_events(w, tavern, &results[tavern]);
-    }
+    for (tavern = 0; tavern < w->tavern_count; tavern++)
+        evaluate_customer_events(w, tavern, &results[tavern]);
     log_daily_summary(w, results);
 
-    int sales_today = 0;
-    for (int d = 0; d < DRINK_COUNT; d++) sales_today += results[w->player_tavern_id].sales[d];
+    sales_today = 0;
+    for (d = 0; d < DRINK_COUNT; d++) sales_today += results[w->player_tavern_id].sales[d];
 
     /*
      *    THIS... is important.
@@ -271,8 +287,11 @@ int world_add_merchant(World* w, Merchant m)
 
 void world_relink_suppliers(World* w)
 {
-    for (int i = 0; i < w->tavern_count; i++) {
-        Tavern* t = &w->taverns[i];
+    int i;
+    Tavern* t;
+
+    for (i = 0; i < w->tavern_count; i++) {
+        t = &w->taverns[i];
         t->supplier = (t->supplier_id >= 0 && t->supplier_id < w->merchant_count)
             ? &w->merchants[t->supplier_id]
             : NULL;
