@@ -43,7 +43,7 @@ release: CFLAGS := $(STD) $(WARNINGS) $(REL_FLAGS) -DTAVERN_DEFAULT_COLORS
 release: SAN    := $(REL_SAN)
 release: $(TARGET)
 
-$(TARGET): | $(BIN_DIR) $(OBJ)
+$(TARGET): $(OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(SAN) $(OBJ) -o $@ $(LIBS)
 
 $(BIN_DIR):
