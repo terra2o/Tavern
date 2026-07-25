@@ -1,10 +1,19 @@
 CC := gcc
+CC_WIN      := i686-w64-mingw32-gcc
+AR_WIN      := i686-w64-mingw32-ar
+STRIP_WIN   := i686-w64-mingw32-strip
+WINDRES_WIN := i686-w64-mingw32-windres
 
 WARNINGS := -Wall -Wextra
 STD      := -std=c99
 INCLUDE  := -Iinclude
 CURSES_LIB := -lncurses
 LIBS     := -lm $(CURSES_LIB)
+
+PDCURSES_DIR := vendor/pdcurses
+PDCURSES_LIB := $(PDCURSES_DIR)/wincon/pdcurses.a
+INCLUDE_WIN  := $(INCLUDE) -I$(PDCURSES_DIR)
+LIBS_WIN     := $(PDCURSES_LIB) -lm -static-libgcc
 
 DBG_FLAGS := -g -O0
 DBG_SAN   := -fsanitize=address,undefined
@@ -43,8 +52,24 @@ release: CFLAGS := $(STD) $(WARNINGS) $(REL_FLAGS) -DTAVERN_DEFAULT_COLORS
 release: SAN    := $(REL_SAN)
 release: $(TARGET)
 
+windows: CC      := $(CC_WIN)
+windows: CFLAGS  := $(STD) $(WARNINGS) $(REL_FLAGS) -DTAVERN_DEFAULT_COLORS
+windows: SAN     :=
+windows: INCLUDE := $(INCLUDE_WIN)
+windows: TARGET  := $(BIN_DIR)/tavern.exe
+windows: $(BIN_DIR)/tavern.exe
+
 $(TARGET): $(OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) $(SAN) $(OBJ) -o $@ $(LIBS)
+
+$(BIN_DIR)/tavern.exe: $(OBJ) $(PDCURSES_LIB) | $(BIN_DIR)
+	$(CC) $(CFLAGS) $(OBJ) -o $@ $(LIBS_WIN)
+
+$(PDCURSES_LIB):
+	$(MAKE) -C $(PDCURSES_DIR)/wincon \
+		CC=$(CC_WIN) AR=$(AR_WIN) LINK=$(CC_WIN) \
+		STRIP=$(STRIP_WIN) WINDRES=$(WINDRES_WIN) \
+		pdcurses.a
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
@@ -53,6 +78,9 @@ $(BIN_DIR):
 	$(CC) $(CFLAGS) $(SAN) $(INCLUDE) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -f $(OBJ) $(TARGET) $(BIN_DIR)/tavern.exe
 
-.PHONY: all debug release clean
+clean-windows: clean
+	$(MAKE) -C $(PDCURSES_DIR)/wincon clean
+
+.PHONY: all debug release windows clean clean-windows

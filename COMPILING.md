@@ -29,16 +29,18 @@ Steps:
 
 ### For Windows 95/98/XP, you need:
 
-- MinGW (an older release, since current MinGW targets modern Windows/NT based systems; Win9x support was dropped from later toolchains) or MSVC of the era.
-- PDCurses, built for the `win32` platform (console flavor) using the same compiler.
+- MinGW (an older release, since current MinGW targets modern Windows/NT based systems; Win9x support was dropped from later toolchains) or MSVC of the era. On a modern Linux box, cross-compiling with `i686-w64-mingw32-gcc` (e.g. Fedora's `mingw32-gcc` package) works fine and still emits binaries compatible with the older Win32 API subset.
+- PDCurses, built statically for the `wincon` (Windows console) platform using the same compiler. Distro PDCurses packages (e.g. Fedora's `mingw32-pdcurses`) are typically DLL-only, so `make windows` builds it from the vendored source in `vendor/pdcurses/` instead — see below.
 
 Steps:
 
-1. Install an old MinGW build appropriate for Win9x/XP (or cross compile from Linux/macOS targeting `i686-w64-mingw32`, checking it still emits binaries compatible with the older Win32 API subset).
-2. Build `pdcurses/win32` with MinGW.
-3. Build Tavern against it.
-4. Copy the resulting `.exe` to the target machine/VM and run it from a command prompt.
-5. If it complains about a missing DLL on launch, you'll likely need to bundle the matching MinGW runtime DLLs (such as `libgcc`) alongside the exe, depending on how it was linked.
+1. Install `i686-w64-mingw32-gcc` (or an old native MinGW build if compiling on Windows itself).
+2. Run `make windows` from the project root. This will:
+   - Build a static `pdcurses.a` from `vendor/pdcurses/wincon` (only the first time, or after `make clean-windows`).
+   - Cross-compile Tavern against it, statically, producing `bin/tavern.exe`.
+3. Copy `bin/tavern.exe` to the target machine/VM and run it from a command prompt. Nothing else needs to be bundled — it only depends on core system DLLs (`KERNEL32`, `USER32`, `ADVAPI32`, `msvcrt`), no PDCurses DLL or MinGW runtime DLLs, since everything is linked statically (`-static-libgcc`, static `pdcurses.a`).
+
+Run `make clean-windows` to remove both Tavern's and PDCurses' build artifacts if you need a fully clean rebuild (e.g. after switching compiler versions).
 
 ### Notes
 
