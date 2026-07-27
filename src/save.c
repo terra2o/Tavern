@@ -133,6 +133,7 @@ int save_game(const char* path, const World* w)
     fprintf(f, "population_capacity=%d\n", w->population.capacity);
     fprintf(f, "last_advertised_day=%d\n", w->last_advertised_day);
     fprintf(f, "inflation_rate=%.6f\n", w->inflation_rate);
+    fprintf(f, "money_supply_prev=%.6f\n", w->money_supply_prev);
     fprintf(f, "at_war=%d\n", w->at_war);
     fprintf(f, "our_kingdom_attack=%d\n", w->our_kingdom_attack);
     fprintf(f, "war_end_day=%d\n", w->war_end_day);
@@ -218,6 +219,7 @@ int load_game(const char* path, World* w)
                 sscanf(line, "population_capacity=%d", &population_capacity);
                 sscanf(line, "last_advertised_day=%d", &w->last_advertised_day);
                 sscanf(line, "inflation_rate=%f", &w->inflation_rate);
+                sscanf(line, "money_supply_prev=%f", &w->money_supply_prev);
                 sscanf(line, "at_war=%d", &w->at_war);
                 sscanf(line, "our_kingdom_attack=%d", &w->our_kingdom_attack);
                 sscanf(line, "war_end_day=%d", &w->war_end_day);

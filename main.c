@@ -67,6 +67,7 @@ static void init_new_game(World* w)
     w->day = 0;
     w->last_advertised_day = 0;
     w->inflation_rate = 1.0f;
+    w->money_supply_prev = 0.0f;
 
     world_merchants_init(w, MAX_MERCHANTS);
     world_taverns_init(w, MAX_TAVERNS);

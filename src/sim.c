@@ -102,14 +102,15 @@ static void world_tick(World* w)
 {
     int new_citizens;
     int i;
+    float inflation_growth;
 
     new_citizens = (int)(frand() * 5.0f) + 1;
     for (i = 0; i < new_citizens; i++) citizen_spawn(&w->population);
     population_tick(w);
-    inflation_tick(w);
+    inflation_growth = inflation_tick(w);
     random_event(w);
     for (i = 0; i < w->merchant_count; i++)
-        update_merchant(&w->merchants[i], w->inflation_rate);
+        update_merchant(&w->merchants[i], w->inflation_rate, inflation_growth);
 }
 
 /* Post-market bookkeeping for one tavern: reputation/consistency

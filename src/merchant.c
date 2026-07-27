@@ -15,7 +15,7 @@ static const float DRINK_STOCK_PRICE_SENSITIVITY[DRINK_COUNT] = { 0.35f, 0.35f }
 #define FAVOR_GAIN_PER_UNIT   0.002f
 #define FAVOR_DAILY_DECAY     0.01f
 
-void update_merchant(Merchant* m, float inflation_rate)
+void update_merchant(Merchant* m, float inflation_rate, float inflation_growth)
 {
     int d;
     float restock_reliability;
@@ -33,6 +33,12 @@ void update_merchant(Merchant* m, float inflation_rate)
     if (frand() < m->instability)
         m->quality += (frand() - 0.5f) * 0.2f;
     m->quality = CLAMP(m->quality, 0.3f, 1.0f);
+
+    /* Compound today's inflation straight into nominal prices before
+       scarcity drift, so prices actively track inflation instead of
+       just being bounded by it. */
+    for (d = 0; d < DRINK_COUNT; d++)
+        m->drink_price[d] *= inflation_growth;
 
     for (d = 0; d < DRINK_COUNT; d++) {
         stock_ratio = m->max_stock[d] > 0.0f ? m->stock[d] / m->max_stock[d] : 1.0f;

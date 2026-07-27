@@ -18,10 +18,14 @@ typedef struct Merchant{
 } Merchant;
 
 /* One day of drift: restocks stock[] toward max_stock[] (less reliably
-   the higher instability is), derives a scarcity-driven price target
-   per drink and eases price toward it, jiggles quality, and decays
-   tavern_favor[] slightly for taverns that didn't buy today. */
-void update_merchant(Merchant* m, float inflation_rate);
+   the higher instability is), compounds today's inflation directly into
+   drink_price[] (inflation_growth, from inflation_tick's return value),
+   derives a scarcity-driven price target per drink and eases price
+   toward it, jiggles quality, and decays tavern_favor[] slightly for
+   taverns that didn't buy today. inflation_rate still bounds the result
+   so a merchant can never drift outside the current inflation-scaled
+   min/max for a drink. */
+void update_merchant(Merchant* m, float inflation_rate, float inflation_growth);
 
 /* Units of drink d this merchant can currently sell. */
 int merchant_available_stock(const Merchant* m, DrinkType d);

@@ -25,6 +25,7 @@ typedef struct World {
                                 some time, they stop coming... */
     MessageLog log;          /* Logs of events happening */
     float inflation_rate;    /* Cumulative price multiplier since day 0, starts at 1.0 */
+    float money_supply_prev; /* Total tavern money + citizen wealth, as of yesterday's tick */
     PendingEventType pending_event;
     int at_war;              /* 1 if currently at war */
     int our_kingdom_attack;  /* 1 if our kingdom is the attacker, 0 if defender */

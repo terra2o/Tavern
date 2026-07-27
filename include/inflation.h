@@ -3,6 +3,7 @@
 
 #include "game_state.h"
 
-void inflation_tick(World* w);
+/* Returns the multiplier applied to w->inflation_rate today (post-clamp). */
+float inflation_tick(World* w);
 
 #endif
