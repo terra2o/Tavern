@@ -18,7 +18,51 @@
 #include "include/event.h"
 #include "include/version.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #define VERSION_STRING "Tavern - Version: " GAME_VERSION
+
+#ifdef _WIN32
+static void windows_shrink_console_font(void)
+{
+    HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                              NULL, OPEN_EXISTING, 0, NULL);
+    if (con == INVALID_HANDLE_VALUE)
+        return;
+
+    CONSOLE_FONT_INFOEX font = {0};
+    font.cbSize = sizeof(font);
+    if (GetCurrentConsoleFontEx(con, FALSE, &font)) {
+        if (font.dwFontSize.X > 8) font.dwFontSize.X = 8;
+        if (font.dwFontSize.Y > 12) font.dwFontSize.Y = 12;
+        SetCurrentConsoleFontEx(con, FALSE, &font);
+    }
+
+    CloseHandle(con);
+}
+
+static void windows_grow_console_buffer(void)
+{
+    HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                              NULL, OPEN_EXISTING, 0, NULL);
+    if (con == INVALID_HANDLE_VALUE)
+        return;
+
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (GetConsoleScreenBufferInfo(con, &csbi)) {
+        COORD size = csbi.dwSize;
+        if (size.X < 500) size.X = 500;
+        if (size.Y < 150) size.Y = 150;
+        SetConsoleScreenBufferSize(con, size);
+    }
+
+    CloseHandle(con);
+}
+#endif
 
 static void event_handler(Tavern* b, World* w, UiState* ui_state, int actions_per_day, UiMode mode, int* resolved)
 {
@@ -29,7 +73,12 @@ static void event_handler(Tavern* b, World* w, UiState* ui_state, int actions_pe
         draw_ui(b, w->day, 0, actions_per_day, w, ui_state, &ui_state->war);
         int ch = getch();
         napms(16);
-        if (ch != ERR)
+        if (ch == KEY_RESIZE) {
+            resize_term(0, 0);
+#ifdef _WIN32
+            windows_grow_console_buffer();
+#endif
+        } else if (ch != ERR)
             ui_handle_input(ch, ui_state, b, w);
     }
     ui_state->mode = UI_MODE_NORMAL;
@@ -119,6 +168,10 @@ int main(void)
     int actions_per_day = 2;
 
     initscr();
+#ifdef _WIN32
+    windows_shrink_console_font();
+    windows_grow_console_buffer();
+#endif
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
@@ -153,7 +206,12 @@ int main(void)
                 int ch = getch();
                 napms(16);
 
-                if (ch != ERR)
+                if (ch == KEY_RESIZE) {
+                    resize_term(0, 0);
+#ifdef _WIN32
+                    windows_grow_console_buffer();
+#endif
+                } else if (ch != ERR)
                     ui_handle_input(ch, &ui_state, b, &w);
 
                 if (ui_state.number_input.is_confirmed != 0) {
