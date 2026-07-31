@@ -1,6 +1,9 @@
 # Save files
 tavernsavefile.txt
 
+# Third-party
+/djgpp
+
 # Prerequisites
 *.d
 

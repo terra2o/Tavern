@@ -12,20 +12,23 @@ This is the trickier part! First, (although I'm planning to port the code to c89
 
 If you're on a virtual machine, you can make a shared directory between the host and guest. If you're on physical hardware, flash/copy the game onto some disk you can use on that computer.
 
-### For DOS, you need:
+### For DOS (including FreeDOS), you need:
 
-- One of the available compilers: DJGPP, Watcom...
-    - I recommend DJGPP since it would require the least amount of changes to the Makefile, since it's basically GCC retargeted for DOS.
+- A DJGPP cross-compiler (GCC retargeted for DOS), typically with the triplet `i586-pc-msdosdjgpp-`.
+    - This generally isn't in mainstream distro package repos, so you'll need to find a prebuilt cross-toolchain package for your distro or build one yourself from the DJGPP crossgcc build scripts.
     - Use a modern DJGPP build (GCC 12 or newer) if you can. Vintage DJGPP 2.03/2.04 installs only support C90 plus a handful of C99 features in the runtime library, even though the compiler itself may accept more. You may hit gaps in headers like `stdint.h` before Tavern's c89 port lands.
-- PDCurses, built for DOS
+- PDCurses' `dos` platform sources, already vendored at `vendor/pdcurses/dos/` (pulled from the same PDCurses release as `vendor/pdcurses/wincon/`).
 
 Steps:
 
-1. Download and install DJGPP (or Watcom).
-2. Download PDCurses and build the `pdcurses/dos` target with DJGPP, producing `pdcurses.a`.
-3. Point the Makefile (or your compile command) at PDCurses' `dos` headers/lib instead of system ncurses.
-4. Build Tavern, then transfer the resulting `.exe` to your DOS machine/VM (via shared folder, floppy image, or null modem/serial transfer if you're really committed to the bit).
-5. Run it. You'll need CWSDPMI (DJGPP's DOS extender stub) alongside the executable, unless it's statically bundled depending on how you built it.
+1. Install a DJGPP cross-toolchain so `i586-pc-msdosdjgpp-gcc` (and `-ar`, `-strip`) are on your `PATH`.
+2. Run `make dos` from the project root. This will:
+   - Build a static `pdcurses.a` from `vendor/pdcurses/dos` (only the first time, or after `make clean-dos`).
+   - Cross-compile Tavern against it, producing `bin/TAVERN.EXE`.
+3. Copy `bin/TAVERN.EXE` to your FreeDOS machine/VM (shared folder, floppy/disk image, or null modem/serial transfer if you're really committed to the bit) and run it.
+4. You'll need `CWSDPMI.EXE` (DJGPP's DOS extender stub) somewhere on the DOS `PATH` alongside the executable — DJGPP binaries are 32-bit protected-mode and load it at startup.
+
+Run `make clean-dos` to remove both Tavern's and PDCurses' DOS build artifacts if you need a fully clean rebuild (e.g. after switching compiler versions).
 
 ### For Windows 95/98/XP, you need:
 
