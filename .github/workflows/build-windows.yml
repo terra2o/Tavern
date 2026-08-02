@@ -12,17 +12,17 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: MINGW32
           update: true
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-make
-            mingw-w64-x86_64-pdcurses
+            mingw-w64-i686-gcc
+            mingw-w64-i686-make
+            mingw-w64-i686-pdcurses
 
       - name: Prepare PDCurses header
         run: |
           set -e
-          hdr=/mingw64/include/pdcurses.h
+          hdr=/mingw32/include/pdcurses.h
           if [ ! -f "$hdr" ]; then
             echo "pdcurses.h wrapper not found at $hdr" >&2
             find /mingw64/include -iname '*curses*' >&2
