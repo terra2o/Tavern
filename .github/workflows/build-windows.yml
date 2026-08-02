@@ -3,35 +3,17 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW32
-          update: true
-          install: >-
-            mingw-w64-i686-gcc
-            mingw-w64-i686-make
-            mingw-w64-i686-pdcurses
-
-      - name: Prepare PDCurses header
+      - name: Install mingw-w64 cross toolchain
         run: |
-          set -e
-          hdr=/mingw32/include/pdcurses.h
-          if [ ! -f "$hdr" ]; then
-            echo "pdcurses.h wrapper not found at $hdr" >&2
-            find /mingw64/include -iname '*curses*' >&2
-            exit 1
-          fi
-          cp "$hdr" include/curses.h
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-i686
 
       - name: Build
-        run: mingw32-make release CURSES_LIB="-lpdcurses_wincon -lwinmm"
+        run: make windows
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v4
