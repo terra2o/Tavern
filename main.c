@@ -25,8 +25,26 @@
 #define VERSION_STRING "Tavern - Version: " GAME_VERSION
 
 #ifdef _WIN32
+/* GetCurrentConsoleFontEx/SetCurrentConsoleFontEx were added in Vista and
+   don't exist in XP's kernel32.dll. Linking against them directly makes the
+   whole executable fail to load on XP with "procedure entry point ... could
+   not be located", so they're resolved dynamically and skipped if absent. */
+typedef BOOL (WINAPI *GetCurrentConsoleFontEx_t)(HANDLE, BOOL, PCONSOLE_FONT_INFOEX);
+typedef BOOL (WINAPI *SetCurrentConsoleFontEx_t)(HANDLE, BOOL, PCONSOLE_FONT_INFOEX);
+
 static void windows_shrink_console_font(void)
 {
+    HMODULE k32 = GetModuleHandleA("kernel32.dll");
+    if (!k32)
+        return;
+
+    GetCurrentConsoleFontEx_t pGetCurrentConsoleFontEx =
+        (GetCurrentConsoleFontEx_t)GetProcAddress(k32, "GetCurrentConsoleFontEx");
+    SetCurrentConsoleFontEx_t pSetCurrentConsoleFontEx =
+        (SetCurrentConsoleFontEx_t)GetProcAddress(k32, "SetCurrentConsoleFontEx");
+    if (!pGetCurrentConsoleFontEx || !pSetCurrentConsoleFontEx)
+        return;
+
     HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
                               FILE_SHARE_READ | FILE_SHARE_WRITE,
                               NULL, OPEN_EXISTING, 0, NULL);
@@ -35,10 +53,10 @@ static void windows_shrink_console_font(void)
 
     CONSOLE_FONT_INFOEX font = {0};
     font.cbSize = sizeof(font);
-    if (GetCurrentConsoleFontEx(con, FALSE, &font)) {
+    if (pGetCurrentConsoleFontEx(con, FALSE, &font)) {
         if (font.dwFontSize.X > 8) font.dwFontSize.X = 8;
         if (font.dwFontSize.Y > 12) font.dwFontSize.Y = 12;
-        SetCurrentConsoleFontEx(con, FALSE, &font);
+        pSetCurrentConsoleFontEx(con, FALSE, &font);
     }
 
     CloseHandle(con);
@@ -69,11 +87,40 @@ static void windows_grow_console_buffer(void)
         SHORT win_y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
         if (size.X < win_x) size.X = win_x;
         if (size.Y < win_y) size.Y = win_y;
-        if (size.X > 0 && size.Y > 0)
+
+        /* SetConsoleScreenBufferSize() makes the console enqueue a fresh
+           WINDOW_BUFFER_SIZE_EVENT even when called with the size it
+           already has. Since this function runs from the KEY_RESIZE
+           handler, calling it unconditionally turns one resize event
+           into an infinite loop: handle resize -> call this -> new
+           (spurious) resize event -> handle resize -> ... which starves
+           real keyboard input for as long as it keeps going. Only call
+           it when the size is actually changing. */
+        if (size.X > 0 && size.Y > 0 &&
+            (size.X != csbi.dwSize.X || size.Y != csbi.dwSize.Y))
             SetConsoleScreenBufferSize(con, size);
     }
 
     CloseHandle(con);
+}
+
+/* True only if the console window's actual size disagrees with what
+   PDCurses thinks LINES/COLS are. Used to tell a real resize apart from
+   a spurious WINDOW_BUFFER_SIZE_EVENT (including ones caused by our own
+   resize handling calling SetConsoleScreenBufferSize/
+   SetConsoleActiveScreenBuffer), since acting on a spurious one just
+   re-triggers another such event and loops forever, starving keyboard
+   input for as long as it keeps going. */
+static int windows_console_size_changed(void)
+{
+    HANDLE con = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (!GetConsoleScreenBufferInfo(con, &csbi))
+        return 1;
+
+    int win_x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    int win_y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    return win_x != COLS || win_y != LINES;
 }
 
 /* The game never uses the mouse, so PDCurses just leaves QuickEdit Mode
@@ -110,9 +157,13 @@ static void event_handler(Tavern* b, World* w, UiState* ui_state, int actions_pe
         int ch = getch();
         napms(16);
         if (ch == KEY_RESIZE) {
-            resize_term(0, 0);
 #ifdef _WIN32
-            windows_grow_console_buffer();
+            if (windows_console_size_changed()) {
+                resize_term(0, 0);
+                windows_grow_console_buffer();
+            }
+#else
+            resize_term(0, 0);
 #endif
         } else if (ch != ERR)
             ui_handle_input(ch, ui_state, b, w);
@@ -244,9 +295,13 @@ int main(void)
                 napms(16);
 
                 if (ch == KEY_RESIZE) {
-                    resize_term(0, 0);
 #ifdef _WIN32
-                    windows_grow_console_buffer();
+                    if (windows_console_size_changed()) {
+                        resize_term(0, 0);
+                        windows_grow_console_buffer();
+                    }
+#else
+                    resize_term(0, 0);
 #endif
                 } else if (ch != ERR)
                     ui_handle_input(ch, &ui_state, b, &w);
