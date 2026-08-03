@@ -44,6 +44,14 @@ static void windows_shrink_console_font(void)
     CloseHandle(con);
 }
 
+/* Keep the console screen buffer matched to the visible window instead of
+   padding it out to a large fixed size. A buffer much bigger than the
+   window creates scrollbars that the legacy Windows 10 console host
+   (conhost.exe) redraws very badly, causing visible glitching/stutter that
+   doesn't happen on older console hosts (Vista) or Windows Terminal, which
+   don't share that renderer. Matching the buffer to the window is enough
+   to fix resizing (the original problem this code was added for) without
+   the scrollbar side effect. */
 static void windows_grow_console_buffer(void)
 {
     HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
@@ -54,10 +62,11 @@ static void windows_grow_console_buffer(void)
 
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     if (GetConsoleScreenBufferInfo(con, &csbi)) {
-        COORD size = csbi.dwSize;
-        if (size.X < 500) size.X = 500;
-        if (size.Y < 150) size.Y = 150;
-        SetConsoleScreenBufferSize(con, size);
+        COORD size;
+        size.X = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+        size.Y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+        if (size.X > 0 && size.Y > 0)
+            SetConsoleScreenBufferSize(con, size);
     }
 
     CloseHandle(con);
