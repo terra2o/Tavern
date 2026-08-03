@@ -44,14 +44,16 @@ static void windows_shrink_console_font(void)
     CloseHandle(con);
 }
 
-/* Keep the console screen buffer matched to the visible window instead of
-   padding it out to a large fixed size. A buffer much bigger than the
-   window creates scrollbars that the legacy Windows 10 console host
-   (conhost.exe) redraws very badly, causing visible glitching/stutter that
-   doesn't happen on older console hosts (Vista) or Windows Terminal, which
-   don't share that renderer. Matching the buffer to the window is enough
-   to fix resizing (the original problem this code was added for) without
-   the scrollbar side effect. */
+/* Keep the console screen buffer sized to whatever the window can actually
+   grow to on this screen/font, instead of padding it out to a large fixed
+   size. The window can never be dragged bigger than the buffer, so some
+   headroom is needed for resizing to work at all, but a buffer much bigger
+   than what the screen can show creates scrollbars that the legacy Windows
+   10 console host (conhost.exe) redraws very badly, causing visible
+   glitching/stutter that doesn't happen on older console hosts (Vista) or
+   Windows Terminal, which don't share that renderer. Bounding the buffer to
+   GetLargestConsoleWindowSize() gives exactly enough room to resize up to
+   full screen without any headroom beyond that. */
 static void windows_grow_console_buffer(void)
 {
     HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
@@ -62,14 +64,39 @@ static void windows_grow_console_buffer(void)
 
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     if (GetConsoleScreenBufferInfo(con, &csbi)) {
-        COORD size;
-        size.X = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-        size.Y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+        COORD size = GetLargestConsoleWindowSize(con);
+        SHORT win_x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+        SHORT win_y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+        if (size.X < win_x) size.X = win_x;
+        if (size.Y < win_y) size.Y = win_y;
         if (size.X > 0 && size.Y > 0)
             SetConsoleScreenBufferSize(con, size);
     }
 
     CloseHandle(con);
+}
+
+/* The game never uses the mouse, so PDCurses just leaves QuickEdit Mode
+   at whatever the console already had (see pdc_quick_edit in
+   vendor/pdcurses/wincon/pdcscrn.c and pdckbd.c). QuickEdit is on by
+   default in classic Windows consoles (cmd.exe), and with it on, clicking
+   into the window to focus it starts a text selection that blocks
+   ReadConsoleInput (what getch() relies on) until Escape or a right click
+   cancels it. That looks exactly like the game "not taking input", so
+   force it off explicitly instead of relying on the user's console
+   defaults. */
+static void windows_disable_quick_edit(void)
+{
+    HANDLE con = GetStdHandle(STD_INPUT_HANDLE);
+    if (con == INVALID_HANDLE_VALUE)
+        return;
+
+    DWORD mode;
+    if (GetConsoleMode(con, &mode)) {
+        mode &= ~ENABLE_QUICK_EDIT_MODE;
+        mode |= ENABLE_EXTENDED_FLAGS;
+        SetConsoleMode(con, mode);
+    }
 }
 #endif
 
@@ -180,6 +207,7 @@ int main(void)
 #ifdef _WIN32
     windows_shrink_console_font();
     windows_grow_console_buffer();
+    windows_disable_quick_edit();
 #endif
     cbreak();
     noecho();

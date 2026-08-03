@@ -35,6 +35,22 @@
 char string_array[STRING_ARRAY_MAX][STRING_ARRAY_LEN];
 int  string_array_count = 0;
 
+/*
+ * Rows 0-18 are needed by the left/right status and action panels.
+ * On short terminals a fixed LOG_HEIGHT would push the log over
+ * that content, so shrink the log (down to a small floor) instead.
+ */
+#define PANEL_CONTENT_ROWS 19
+#define LOG_MIN_HEIGHT 4
+
+static int get_log_height(int max_y)
+{
+    int h = max_y - PANEL_CONTENT_ROWS;
+    if (h > LOG_HEIGHT) h = LOG_HEIGHT;
+    if (h < LOG_MIN_HEIGHT) h = LOG_MIN_HEIGHT;
+    return h;
+}
+
 /* Initialize UI state */
 void ui_state_init(UiState* state)
 {
@@ -61,13 +77,14 @@ int color_for_severity(LogSeverity s)
 
 void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset) 
 {
-    int start_y = max_y - LOG_HEIGHT;
+    int log_height = get_log_height(max_y);
+    int start_y = max_y - log_height;
 
     // separator
     for (int x = 0; x < max_x; x++)
         mvaddch(start_y, x, ACS_HLINE);
 
-    int lines_to_show = LOG_HEIGHT - 1;
+    int lines_to_show = log_height - 1;
     int start = log->count - lines_to_show - scroll_offset;
     if (start < 0) start = 0;
     int max_start = log->count - lines_to_show;
@@ -120,7 +137,7 @@ void draw_centered_box(int box_w,
                     char* title)
 {
     int box_x = (max_x - box_w) / 2;
-    int box_y = (max_y - LOG_HEIGHT - box_h) / 2;
+    int box_y = (max_y - get_log_height(max_y) - box_h) / 2;
 
     /* Box border */
     mvaddch(box_y, box_x, ACS_ULCORNER);
@@ -156,7 +173,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
 {
     int max_x, max_y;
     getmaxyx(stdscr, max_y, max_x);
-    int usable_height = max_y - LOG_HEIGHT;
+    int usable_height = max_y - get_log_height(max_y);
 
     erase();
 
@@ -393,7 +410,10 @@ void ui_start_number_input(UiState* ui_state, const char* prompt,
 /* Handle input while in number input mode */
 static void ui_handle_number_input(int ch, UiState* ui_state, World* w)
 {
-    int max_scroll = w->log.count - (LOG_HEIGHT - 1);
+    int max_x, max_y;
+    getmaxyx(stdscr, max_y, max_x);
+    (void)max_x;
+    int max_scroll = w->log.count - (get_log_height(max_y) - 1);
     if (max_scroll < 0) max_scroll = 0;
 
     if (ui_state->log_scroll_offset > max_scroll)
@@ -589,7 +609,10 @@ static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, World* w)
 /* Updates UI state based on input, handling mode-specific logic. */
 void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
 {
-    int max_scroll = w->log.count - (LOG_HEIGHT - 1);
+    int max_x, max_y;
+    getmaxyx(stdscr, max_y, max_x);
+    (void)max_x;
+    int max_scroll = w->log.count - (get_log_height(max_y) - 1);
     if (max_scroll < 0) max_scroll = 0;
 
     if (ui_state->log_scroll_offset > max_scroll)
