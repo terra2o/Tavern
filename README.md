@@ -34,6 +34,8 @@ Here's a to-do list for this game (The ones with strikethrough are done):
 ## itch.io
 Please comment on the [itch.io page](https://terra2o.itch.io/tavern)! You can also get pre-built binaries there for macOS, Linux, and Windows.
 
+## Human made!
+This project is made by a human and contributors must be human as well! LLM usage is minimal.
 
 ## Build
 ### For building on older systems, check out [COMPILING.md](./COMPILING.md).
