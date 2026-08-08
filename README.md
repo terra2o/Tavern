@@ -29,6 +29,8 @@ Here's a to-do list for this game (The ones with strikethrough are done):
 - ~~Changes in population, so the potential customer number is not stable.~~
 - Make code compatible with c89... maybe?
 - ~~Maybe the kingdom you're in could start wars and that could affect economy and your customers, etc.~~
+- Make winery, so you can make your own wine.
+- Add a top-down 2D mini-game where you collect fruits for making wine.
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io
