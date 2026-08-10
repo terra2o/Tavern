@@ -5,6 +5,7 @@
 #include "log.h"
 #include "game_state.h"
 #include "drink.h"
+#include "fruit.h"
 #include <math.h>
 
 #define CLAMP(x,a,b) ((x)<(a)?(a):((x)>(b)?(b):(x)))
@@ -13,10 +14,10 @@ typedef struct PeriodicPayment {
     int pay_period;
     int next_payment_day;
     float rent_amount;
-    float base_rent; // Original rent at game start; actual charge = base_rent * inflation_rate
+    float base_rent; /* Original rent at game start; actual charge = base_rent * inflation_rate */
 } PeriodicPayment;
 
-typedef struct Tavern{
+typedef struct Tavern {
     /* Index of this tavern in World.taverns[]; used to look itself up
        in a Merchant's per-tavern arrays (favor, etc). Derived from
        load/creation order, not itself persisted in the save file. */
@@ -26,6 +27,7 @@ typedef struct Tavern{
 
     int total_inventory;
     Drink drinks[DRINK_COUNT];
+    Fruit fruits[FRUIT_COUNT];
 
     float quality_actual;
     float quality_perceived;

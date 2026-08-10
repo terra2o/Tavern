@@ -183,6 +183,10 @@ static Tavern make_starter_tavern(const World* w, int merchant_id, const Merchan
     b.drinks[DRINK_WINE].inventory.amount = 2;
     b.last_drink_price[DRINK_ALE] = 1.0f;
     b.last_drink_price[DRINK_WINE] = 1.0f;
+    b.fruits[FRUIT_APPLE].inventory.expiration_date = 30;
+    b.fruits[FRUIT_GRAPE].inventory.expiration_date = 30;
+    b.fruits[FRUIT_APPLE].inventory.amount = 1;
+    b.fruits[FRUIT_GRAPE].inventory.amount = 1;
     b.quality_actual = m->quality;
     b.quality_perceived = 0.5f;
     b.rumor = 0.5f;

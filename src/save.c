@@ -12,8 +12,16 @@ static void write_tavern(FILE* f, int index, const Tavern* b)
                 b->drinks[d].price, b->drinks[d].inventory.amount,
                 b->drinks[d].inventory.expiration_date);
     }
+
     for (int d = 0; d < DRINK_COUNT; d++)
         fprintf(f, ",%f", b->last_drink_price[d]);
+
+    for (int fruit = 0; fruit < FRUIT_COUNT; fruit++) {
+        fprintf(f, ",%d,%d",
+                b->fruits[fruit].inventory.amount,
+                b->fruits[fruit].inventory.expiration_date);
+    }
+
     fprintf(f, ",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%f,%f\n",
             b->quality_actual, b->quality_perceived, b->rumor, b->consistency,
             b->handsomeness, b->reputation, b->last_pathway_clean_day,
@@ -47,6 +55,16 @@ static int read_tavern(char* line, World* w)
         cursor++;
         int n2;
         if (sscanf(cursor, "%f%n", &b.last_drink_price[d], &n2) != 1) return 0;
+        cursor += n2;
+    }
+
+    for (int fruit = 0; fruit < FRUIT_COUNT; fruit++) {
+        if (*cursor != ',') return 0;
+        cursor++;
+        int n2;
+        if (sscanf(cursor, "%d,%d%n",
+                    &b.fruits[fruit].inventory.amount,
+                    &b.fruits[fruit].inventory.expiration_date, &n2) != 2) return 0;
         cursor += n2;
     }
 

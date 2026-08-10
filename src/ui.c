@@ -93,17 +93,6 @@ void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset)
 
     int y = start_y + 1;
 
-    // int color_for_severity(LogSeverity s)
-    // {
-    //     switch (s) {
-    //         case LOG_INFO:  return 4;
-    //         case LOG_IMPORTANT: return 5;
-    //         case LOG_WARN:  return 3;
-    //         case LOG_ERROR: return 3;
-    //     }
-    //     return 0;
-    // }
-
     for (int i = start; i < log->count && y < max_y; i++) {
         attron(COLOR_PAIR(log->lines[i].color_pair));
         mvprintw(y++, 2, "%.*s", max_x - 4, log->lines[i].text);
@@ -181,51 +170,55 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     int right_start = left_width + 1;
 
     /* --- LEFT PANEL: Status --- */
+    int left_panel_y = 0; // increment this everytime there's a new entry in left panel
     attron(A_BOLD);
-    mvprintw(0, 2, "DAY %d", day);
+    mvprintw(left_panel_y, 2, "DAY %d", day);
     attroff(A_BOLD);
 
     int color = (b->money >= 0) ? COLOR_MONEY : COLOR_WARNING;
     attron(COLOR_PAIR(color));
-    mvprintw(2, 2, "Money: $%.2f", b->money);
+    mvprintw(++left_panel_y, 2, "Money: $%.2f", b->money);
     attroff(COLOR_PAIR(color));
 
-    mvprintw(3, 2, "Ale: %d mugs", b->drinks[DRINK_ALE].inventory.amount);
-    mvprintw(4, 2, "Ale Price: $%.2f", b->drinks[DRINK_ALE].price);
-    mvprintw(5, 2, "Wine: %d glasses", b->drinks[DRINK_WINE].inventory.amount);
-    mvprintw(6, 2, "Wine Price: $%.2f", b->drinks[DRINK_WINE].price);
+    mvprintw(++left_panel_y, 2, "Ale: %d mugs", b->drinks[DRINK_ALE].inventory.amount);
+    mvprintw(++left_panel_y, 2, "Ale Price: $%.2f", b->drinks[DRINK_ALE].price);
+    mvprintw(++left_panel_y, 2, "Wine: %d glasses", b->drinks[DRINK_WINE].inventory.amount);
+    mvprintw(++left_panel_y, 2, "Wine Price: $%.2f", b->drinks[DRINK_WINE].price);
+    mvprintw(++left_panel_y, 2, "Apples: %d", b->fruits[FRUIT_APPLE].inventory.amount);
+    mvprintw(++left_panel_y, 2, "Grapes: %d", b->fruits[FRUIT_GRAPE].inventory.amount);
 
     color = (b->reputation < 0.3f) ? COLOR_YELLOW : COLOR_NORMAL;
     attron(COLOR_PAIR(color));
-    mvprintw(7, 2, "Reputation: %.2f", b->reputation);
+    mvprintw(++left_panel_y, 2, "Reputation: %.2f", b->reputation);
     attroff(COLOR_PAIR(color));
 
-    mvprintw(8, 2, "Quality (actual): %.2f", b->quality_actual);
-    mvprintw(9, 2, "Quality (perceived): %.2f", b->quality_perceived);
-    mvprintw(10, 2, "Rumor: %.2f", b->rumor);
-    mvprintw(11, 2, "Consistency: %.2f", b->consistency);
-    mvprintw(12, 2, "Handsomeness: %.2f", b->handsomeness);
-    mvprintw(13, 2, "Population: %d", w->population.alive_count);
-    mvprintw(14, 2, "Pathway dirtiness: %d/7", (w->day - b->last_pathway_clean_day));
-
-    float avg_thirst, avg_addiction;
-    population_stats(&w->population, &avg_thirst, &avg_addiction);
-    mvprintw(17, 2, "Town thirst: %.0f%%", avg_thirst * 100.0f);
-    mvprintw(18, 2, "Town addiction: %.0f%%", avg_addiction * 100.0f);
+    mvprintw(++left_panel_y, 2, "Quality (actual): %.2f", b->quality_actual);
+    mvprintw(++left_panel_y, 2, "Quality (perceived): %.2f", b->quality_perceived);
+    mvprintw(++left_panel_y, 2, "Rumor: %.2f", b->rumor);
+    mvprintw(++left_panel_y, 2, "Consistency: %.2f", b->consistency);
+    mvprintw(++left_panel_y, 2, "Handsomeness: %.2f", b->handsomeness);
+    mvprintw(++left_panel_y, 2, "Population: %d", w->population.alive_count);
+    mvprintw(++left_panel_y, 2, "Pathway dirtiness: %d/7", (w->day - b->last_pathway_clean_day));
 
     if (w->at_war) {
         attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
         if (w->our_kingdom_attack)
-            mvprintw(16, 2, "** AT WAR (your kingdom is attacking) **");
+            mvprintw(++left_panel_y, 2, "** AT WAR (your kingdom is attacking) **");
         else
-            mvprintw(16, 2, "** AT WAR (your kingdom is defending) **");
+            mvprintw(++left_panel_y, 2, "** AT WAR (your kingdom is defending) **");
         attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
     }
+
+    float avg_thirst, avg_addiction;
+    population_stats(&w->population, &avg_thirst, &avg_addiction);
+    mvprintw(++left_panel_y, 2, "Town thirst: %.0f%%", avg_thirst * 100.0f);
+    mvprintw(++left_panel_y, 2, "Town addiction: %.0f%%", avg_addiction * 100.0f);
+
 
     float inf_pct = (w->inflation_rate - 1.0f) * 100.0f;
     int inf_color = (inf_pct >= 25.0f) ? COLOR_WARNING : (inf_pct >= 10.0f) ? COLOR_YELLOW : COLOR_NORMAL;
     attron(COLOR_PAIR(inf_color));
-    mvprintw(15, 2, "Inflation: +%.1f%%", inf_pct);
+    mvprintw(++left_panel_y, 2, "Inflation: +%.1f%%", inf_pct);
     attroff(COLOR_PAIR(inf_color));
 
     /* Draw left panel border */
