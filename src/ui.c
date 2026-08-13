@@ -36,11 +36,12 @@ char string_array[STRING_ARRAY_MAX][STRING_ARRAY_LEN];
 int  string_array_count = 0;
 
 /*
- * Rows 0-18 are needed by the left/right status and action panels.
+ * Rows 0-9 are needed by the left/right status and action panels
+ * (each panel is laid out as two inner columns to stay compact).
  * On short terminals a fixed LOG_HEIGHT would push the log over
  * that content, so shrink the log (down to a small floor) instead.
  */
-#define PANEL_CONTENT_ROWS 19
+#define PANEL_CONTENT_ROWS 10
 #define LOG_MIN_HEIGHT 4
 
 static int get_log_height(int max_y)
@@ -170,35 +171,49 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     int right_start = left_width + 1;
 
     /* --- LEFT PANEL: Status --- */
-    int left_panel_y = 0; // increment this everytime there's a new entry in left panel
+    /* Two inner columns keep this panel compact as more stats get added. */
+    int left_col2_x = left_width / 2 + 1;
+    int left_panel_y = 0; // increment this everytime there's a new ROW (each row holds 2 stats)
+
     attron(A_BOLD);
     mvprintw(left_panel_y, 2, "DAY %d", day);
     attroff(A_BOLD);
 
     int color = (b->money >= 0) ? COLOR_MONEY : COLOR_WARNING;
     attron(COLOR_PAIR(color));
-    mvprintw(++left_panel_y, 2, "Money: $%.2f", b->money);
+    mvprintw(left_panel_y, left_col2_x, "Money: $%.2f", b->money);
     attroff(COLOR_PAIR(color));
 
-    mvprintw(++left_panel_y, 2, "Ale: %d mugs", b->drinks[DRINK_ALE].inventory.amount);
-    mvprintw(++left_panel_y, 2, "Ale Price: $%.2f", b->drinks[DRINK_ALE].price);
-    mvprintw(++left_panel_y, 2, "Wine: %d glasses", b->drinks[DRINK_WINE].inventory.amount);
-    mvprintw(++left_panel_y, 2, "Wine Price: $%.2f", b->drinks[DRINK_WINE].price);
+    mvprintw(++left_panel_y, 2, "Ale: %d mugs ($%.2f)", b->drinks[DRINK_ALE].inventory.amount, b->drinks[DRINK_ALE].price);
+    mvprintw(left_panel_y, left_col2_x, "Wine: %d glasses ($%.2f)", b->drinks[DRINK_WINE].inventory.amount, b->drinks[DRINK_WINE].price);
+
     mvprintw(++left_panel_y, 2, "Apples: %d", b->fruits[FRUIT_APPLE].inventory.amount);
-    mvprintw(++left_panel_y, 2, "Grapes: %d", b->fruits[FRUIT_GRAPE].inventory.amount);
+    mvprintw(left_panel_y, left_col2_x, "Grapes: %d", b->fruits[FRUIT_GRAPE].inventory.amount);
 
     color = (b->reputation < 0.3f) ? COLOR_YELLOW : COLOR_NORMAL;
     attron(COLOR_PAIR(color));
     mvprintw(++left_panel_y, 2, "Reputation: %.2f", b->reputation);
     attroff(COLOR_PAIR(color));
+    mvprintw(left_panel_y, left_col2_x, "Quality: %.2f/%.2f", b->quality_actual, b->quality_perceived);
 
-    mvprintw(++left_panel_y, 2, "Quality (actual): %.2f", b->quality_actual);
-    mvprintw(++left_panel_y, 2, "Quality (perceived): %.2f", b->quality_perceived);
     mvprintw(++left_panel_y, 2, "Rumor: %.2f", b->rumor);
-    mvprintw(++left_panel_y, 2, "Consistency: %.2f", b->consistency);
+    mvprintw(left_panel_y, left_col2_x, "Consistency: %.2f", b->consistency);
+
     mvprintw(++left_panel_y, 2, "Handsomeness: %.2f", b->handsomeness);
-    mvprintw(++left_panel_y, 2, "Population: %d", w->population.alive_count);
-    mvprintw(++left_panel_y, 2, "Pathway dirtiness: %d/7", (w->day - b->last_pathway_clean_day));
+    mvprintw(left_panel_y, left_col2_x, "Population: %d", w->population.alive_count);
+
+    mvprintw(++left_panel_y, 2, "Pathway dirt: %d/7", (w->day - b->last_pathway_clean_day));
+
+    float inf_pct = (w->inflation_rate - 1.0f) * 100.0f;
+    int inf_color = (inf_pct >= 25.0f) ? COLOR_WARNING : (inf_pct >= 10.0f) ? COLOR_YELLOW : COLOR_NORMAL;
+    attron(COLOR_PAIR(inf_color));
+    mvprintw(left_panel_y, left_col2_x, "Inflation: +%.1f%%", inf_pct);
+    attroff(COLOR_PAIR(inf_color));
+
+    float avg_thirst, avg_addiction;
+    population_stats(&w->population, &avg_thirst, &avg_addiction);
+    mvprintw(++left_panel_y, 2, "Town thirst: %.0f%%", avg_thirst * 100.0f);
+    mvprintw(left_panel_y, left_col2_x, "Town addiction: %.0f%%", avg_addiction * 100.0f);
 
     if (w->at_war) {
         attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
@@ -209,41 +224,31 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
     }
 
-    float avg_thirst, avg_addiction;
-    population_stats(&w->population, &avg_thirst, &avg_addiction);
-    mvprintw(++left_panel_y, 2, "Town thirst: %.0f%%", avg_thirst * 100.0f);
-    mvprintw(++left_panel_y, 2, "Town addiction: %.0f%%", avg_addiction * 100.0f);
-
-
-    float inf_pct = (w->inflation_rate - 1.0f) * 100.0f;
-    int inf_color = (inf_pct >= 25.0f) ? COLOR_WARNING : (inf_pct >= 10.0f) ? COLOR_YELLOW : COLOR_NORMAL;
-    attron(COLOR_PAIR(inf_color));
-    mvprintw(++left_panel_y, 2, "Inflation: +%.1f%%", inf_pct);
-    attroff(COLOR_PAIR(inf_color));
-
     /* Draw left panel border */
     for (int y = 0; y < usable_height; y++)
         mvaddch(y, left_width, ACS_VLINE);
 
     /* --- RIGHT PANEL: Actions --- */
+    /* Same two-inner-column treatment as the left panel. */
+    int right_width = max_x - right_start;
+    int right_col2_x = right_start + right_width / 2;
+
     attron(A_BOLD);
     mvprintw(0, right_start + 2, "ACTIONS (%d/%d)", action_num, actions_per_day);
     attroff(A_BOLD);
 
     mvprintw(2, right_start + 2, "1 - Skin care");
-    mvprintw(3, right_start + 2, "2 - Clean shop");
-    mvprintw(4, right_start + 2, "3 - Talk to townsfolk");
-    mvprintw(5, right_start + 2, "4 - Check drink quality");
-    mvprintw(6, right_start + 2, "5 - Advertise");
-    mvprintw(7, right_start + 2, "6 - Clean pathway");
-    mvprintw(8, right_start + 2, "7 - Buy ale stock");
-    mvprintw(9, right_start + 2, "   (%.2f per mug)", merchant_quote_price(b->supplier, b->id, DRINK_ALE));
-    mvprintw(10, right_start + 2, "8 - Buy wine stock");
-    mvprintw(11, right_start + 2, "   (%.2f per glass)", merchant_quote_price(b->supplier, b->id, DRINK_WINE));
-    mvprintw(12, right_start + 2, "W - Adjust ale price");
-    mvprintw(13, right_start + 2, "E - Adjust wine price");
-    mvprintw(14, right_start + 2, "S - View/switch suppliers");
-    mvprintw(15, right_start + 2, "Q - Quit game");
+    mvprintw(2, right_col2_x, "2 - Clean shop");
+    mvprintw(3, right_start + 2, "3 - Talk to townsfolk");
+    mvprintw(3, right_col2_x, "4 - Check drink quality");
+    mvprintw(4, right_start + 2, "5 - Advertise");
+    mvprintw(4, right_col2_x, "6 - Clean pathway");
+    mvprintw(5, right_start + 2, "7 - Buy ale ($%.2f/mug)", merchant_quote_price(b->supplier, b->id, DRINK_ALE));
+    mvprintw(5, right_col2_x, "8 - Buy wine ($%.2f/glass)", merchant_quote_price(b->supplier, b->id, DRINK_WINE));
+    mvprintw(6, right_start + 2, "W - Adjust ale price");
+    mvprintw(6, right_col2_x, "E - Adjust wine price");
+    mvprintw(7, right_start + 2, "S - View/switch suppliers");
+    mvprintw(7, right_col2_x, "Q - Quit game");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
