@@ -110,17 +110,49 @@ static void windows_grow_console_buffer(void)
    resize handling calling SetConsoleScreenBufferSize/
    SetConsoleActiveScreenBuffer), since acting on a spurious one just
    re-triggers another such event and loops forever, starving keyboard
-   input for as long as it keeps going. */
+   input for as long as it keeps going.
+
+   Must open "CONOUT$" rather than use GetStdHandle(STD_OUTPUT_HANDLE):
+   PDCurses creates its own console screen buffer on startup and makes
+   it the active (visible) one via SetConsoleActiveScreenBuffer, but
+   STD_OUTPUT_HANDLE keeps pointing at the original buffer, which is now
+   invisible and never resized. Querying it reads a permanently stale
+   window rect, so the resize is never seen, regardless of Windows
+   version. "CONOUT$" always refers to whichever buffer is currently
+   active. */
 static int windows_console_size_changed(void)
 {
-    HANDLE con = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    if (!GetConsoleScreenBufferInfo(con, &csbi))
+    HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                              NULL, OPEN_EXISTING, 0, NULL);
+    if (con == INVALID_HANDLE_VALUE)
         return 1;
+
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (!GetConsoleScreenBufferInfo(con, &csbi)) {
+        CloseHandle(con);
+        return 1;
+    }
 
     int win_x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
     int win_y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    CloseHandle(con);
     return win_x != COLS || win_y != LINES;
+}
+
+/* KEY_RESIZE only reaches PDCurses via a WINDOW_BUFFER_SIZE_EVENT from the
+   console subsystem. Modern conhost.exe (Vista and later) reliably posts
+   that event for a plain window-drag resize, but XP's older csrss-hosted
+   console (and possibly other pre-conhost hosts) does not, so a dragged
+   resize can go completely unnoticed there. Polling the actual console size
+   once per frame sidesteps the event entirely and works the same on every
+   Windows version. */
+static void windows_poll_resize(void)
+{
+    if (windows_console_size_changed()) {
+        resize_term(0, 0);
+        windows_grow_console_buffer();
+    }
 }
 
 /* The game never uses the mouse, so PDCurses just leaves QuickEdit Mode
@@ -156,17 +188,16 @@ static void event_handler(Tavern* b, World* w, UiState* ui_state, int actions_pe
         draw_ui(b, w->day, 0, actions_per_day, w, ui_state, &ui_state->war);
         int ch = getch();
         napms(16);
-        if (ch == KEY_RESIZE) {
 #ifdef _WIN32
-            if (windows_console_size_changed()) {
-                resize_term(0, 0);
-                windows_grow_console_buffer();
-            }
-#else
-            resize_term(0, 0);
-#endif
-        } else if (ch != ERR)
+        windows_poll_resize();
+        if (ch != KEY_RESIZE && ch != ERR)
             ui_handle_input(ch, ui_state, b, w);
+#else
+        if (ch == KEY_RESIZE)
+            resize_term(0, 0);
+        else if (ch != ERR)
+            ui_handle_input(ch, ui_state, b, w);
+#endif
     }
     ui_state->mode = UI_MODE_NORMAL;
 }
@@ -298,17 +329,16 @@ int main(void)
                 int ch = getch();
                 napms(16);
 
-                if (ch == KEY_RESIZE) {
 #ifdef _WIN32
-                    if (windows_console_size_changed()) {
-                        resize_term(0, 0);
-                        windows_grow_console_buffer();
-                    }
-#else
-                    resize_term(0, 0);
-#endif
-                } else if (ch != ERR)
+                windows_poll_resize();
+                if (ch != KEY_RESIZE && ch != ERR)
                     ui_handle_input(ch, &ui_state, b, &w);
+#else
+                if (ch == KEY_RESIZE)
+                    resize_term(0, 0);
+                else if (ch != ERR)
+                    ui_handle_input(ch, &ui_state, b, &w);
+#endif
 
                 if (ui_state.number_input.is_confirmed != 0) {
                     ui_process_action(&ui_state, b, &w);
