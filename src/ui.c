@@ -260,6 +260,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(7, right_start + 2, "S - View/switch suppliers");
     mvprintw(7, right_col2_x, "Q - Quit game");
     mvprintw(8, right_start + 2, "9 - Collect fruits");
+    mvprintw(8, right_col2_x, "M - Make wines with fruits");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
@@ -734,6 +735,8 @@ static const struct { int key; Action action; } ACTION_KEYS[] = {
     { 'e', ACT_ADJUST_WINE_PRICE },
     { 'E', ACT_ADJUST_WINE_PRICE },
     { '9', ACT_COLLECT_FRUIT },
+    { 'M', ACT_MAKE_WINE },
+    { 'm', ACT_MAKE_WINE },
 };
 
 /* Convert a character to an action (only valid in NORMAL mode) */

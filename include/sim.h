@@ -78,6 +78,7 @@ typedef enum {
 	ACT_ADJUST_ALE_PRICE,
     ACT_ADJUST_WINE_PRICE,
     ACT_COLLECT_FRUIT,
+    ACT_MAKE_WINE,
 } Action;
 
 /* Compute reputation from quality, rumor, consistency, handsomeness */

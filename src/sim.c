@@ -81,6 +81,24 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
         case ACT_COLLECT_FRUIT:
             /* handled outside apply_action, it's its own minigame loop */
             break;
+
+        case ACT_MAKE_WINE: {
+            /* NOTE: planning to make specific wines, like apple wine and grape... this is it for now though */
+            int total_wine_made = 0;
+            char buf[256];
+            long unsigned int i;
+
+            for (i = 0; i < FRUIT_COUNT; i++) {
+                total_wine_made += b->fruits[i].inventory.amount;
+                b->fruits[i].inventory.amount = 0;
+            }
+            b->drinks[DRINK_WINE].inventory.amount += total_wine_made;
+
+            snprintf(buf, sizeof(buf), "You made some wine. You made %d of them in total", total_wine_made);
+            log_message(&w->log, buf, LOG_INFO);
+
+            break;
+        }
     }
 }
 
