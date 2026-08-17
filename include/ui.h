@@ -4,6 +4,7 @@
 #include "../include/sim.h"
 #include "../include/game_state.h"
 #include "../include/event.h"
+#include "../include/collect_game.h"
 
 /* UI state machine modes */
 typedef enum {
@@ -16,7 +17,8 @@ typedef enum {
     UI_MODE_WAR_SOLDIERS,
     UI_MODE_WAR_REFUGEES,
     UI_MODE_WAR_ATTACK,
-    UI_MODE_SUPPLIER
+    UI_MODE_SUPPLIER,
+    UI_MODE_COLLECT
 } UiMode;
 
 /* Describes the number-input prompt an action needs before it can
@@ -61,6 +63,7 @@ typedef struct {
     WarRefugeesState war_refugees;
     WarAttackState war_attack;
     SupplierState supplier;
+    CollectState collect;
 } UiState;
 
 /* Initialize ncurses color pairs */
@@ -75,6 +78,9 @@ void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset);
 /* Draw the entire UI screen with status, actions, stats, and input dialogs */
 void draw_ui(Tavern* b, int day, int action_num, int actions_per_day, 
              World *w, UiState* ui_state, WarState* war);
+
+/* The game where you collect fruits to make wines */
+void draw_collecting_game(Tavern* b, UiState* ui_state);
 
 /* Update UI state based on a single character of input (non-blocking) */
 void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w);

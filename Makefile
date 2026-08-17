@@ -45,7 +45,8 @@ SRC := \
 	src/pathway.c \
 	src/save.c \
 	src/inflation.c \
-	src/event.c
+	src/event.c \
+	src/collect_game.c
 
 OBJ := $(SRC:.c=.o)
 
