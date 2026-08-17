@@ -77,6 +77,10 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
         case ACT_CLEAN_PATHWAY:
             apply_clean_pathway(b, w->day);
             break;
+
+        case ACT_COLLECT_FRUIT:
+            /* handled outside apply_action, it's its own minigame loop */
+            break;
     }
 }
 

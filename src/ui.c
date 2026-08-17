@@ -22,6 +22,11 @@
 #define COLOR_NORMAL 4
 #define COLOR_IMPORTANT 5
 
+#define EMPTY     ' '
+#define PLAYER    '@'
+#define APPLE     'A'
+#define GRAPE     'G'
+
 #define STRING_ARRAY_MAX 32
 #define STRING_ARRAY_LEN 256
 #define PUSH_STR(arr, count, s) \
@@ -63,6 +68,7 @@ void ui_state_init(UiState* state)
     state->vomit.resolved = 0;
     state->steal.resolved = 0;
     state->supplier.selected = 0;
+    memset(&state->collect, 0, sizeof(state->collect));
 }
 
 int color_for_severity(LogSeverity s) 
@@ -120,16 +126,8 @@ void string_array_clear(void)
     string_array_count = 0;
 }
 
-void draw_centered_box(int box_w, 
-                    int box_h, 
-                    int max_x, 
-                    int max_y,
-                    char* title)
+static void draw_box_border(int box_x, int box_y, int box_w, int box_h)
 {
-    int box_x = (max_x - box_w) / 2;
-    int box_y = (max_y - get_log_height(max_y) - box_h) / 2;
-
-    /* Box border */
     mvaddch(box_y, box_x, ACS_ULCORNER);
     mvaddch(box_y, box_x + box_w - 1, ACS_URCORNER);
     mvaddch(box_y + box_h - 1, box_x, ACS_LLCORNER);
@@ -148,6 +146,18 @@ void draw_centered_box(int box_w,
     for (int y = box_y + 1; y < box_y + box_h - 1; y++)
         for (int x = box_x + 1; x < box_x + box_w - 1; x++)
             mvaddch(y, x, ' ');
+}
+
+void draw_centered_box(int box_w,
+                    int box_h,
+                    int max_x,
+                    int max_y,
+                    char* title)
+{
+    int box_x = (max_x - box_w) / 2;
+    int box_y = (max_y - get_log_height(max_y) - box_h) / 2;
+
+    draw_box_border(box_x, box_y, box_w, box_h);
 
     attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
     mvprintw(box_y + 1, box_x + 2, "%s", title);
@@ -249,9 +259,14 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(6, right_col2_x, "E - Adjust wine price");
     mvprintw(7, right_start + 2, "S - View/switch suppliers");
     mvprintw(7, right_col2_x, "Q - Quit game");
+    mvprintw(8, right_start + 2, "9 - Collect fruits");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
+
+    if (ui_state->mode == UI_MODE_COLLECT) {
+        draw_collecting_game(b, ui_state);
+    }
 
     /* --- NUMBER INPUT OVERLAY (if in input mode) --- */
     if (ui_state->mode == UI_MODE_NUMBER_INPUT) {
@@ -373,7 +388,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         }
         draw_centered_box(78, 8 + w->merchant_count, max_x, max_y, "SUPPLIERS  (* = current)");
     }
-
+ 
     if (ui_state->mode == UI_MODE_WAR_ATTACK) {
         string_array_count = 0;
         PUSH_STR(string_array, string_array_count, "What do you do?");
@@ -385,6 +400,39 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     }
 
     refresh();
+}
+
+void draw_collecting_game(Tavern* b, UiState* ui_state)
+{
+    CollectState* s = &ui_state->collect;
+    int max_x, max_y;
+    getmaxyx(stdscr, max_y, max_x);
+
+    collect_tick(s);
+
+    int box_w = s->width + 2;
+    int box_h = s->height + 2;
+    int box_x = (max_x - box_w) / 2;
+    int box_y = (max_y - get_log_height(max_y) - box_h) / 2;
+
+    draw_box_border(box_x, box_y, box_w, box_h);
+
+    char title[64];
+    snprintf(title, sizeof(title), "COLLECT FRUITS (%d/%d)", s->collected_count, COLLECT_MAX_FRUITS);
+    attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
+    mvprintw(box_y, box_x + 2, "%s", title);
+    attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
+
+    for (int i = 0; i < s->spawned_total; i++) {
+        CollectFruit* f = &s->fruits[i];
+        if (!f->active) continue;
+        char glyph = (f->type == FRUIT_APPLE) ? APPLE : GRAPE;
+        mvaddch(box_y + 1 + f->y, box_x + 1 + f->x, glyph);
+    }
+
+    mvaddch(box_y + 1 + s->player_y, box_x + 1 + s->player_x, PLAYER);
+
+    (void)b;
 }
 
 /* Start number input mode, initializing the state. */
@@ -634,6 +682,8 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
         ui_handle_war_attack(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_SUPPLIER) {
         ui_handle_supplier(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_COLLECT) {
+        collect_handle_input(ch, &ui_state->collect, b);
     } else if (ui_state->mode == UI_MODE_NORMAL) {
         /* In normal mode, handle scrolling */
         if (ch == KEY_UP)
@@ -683,6 +733,7 @@ static const struct { int key; Action action; } ACTION_KEYS[] = {
     { 'W', ACT_ADJUST_ALE_PRICE },
     { 'e', ACT_ADJUST_WINE_PRICE },
     { 'E', ACT_ADJUST_WINE_PRICE },
+    { '9', ACT_COLLECT_FRUIT },
 };
 
 /* Convert a character to an action (only valid in NORMAL mode) */

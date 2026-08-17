@@ -372,6 +372,14 @@ int main(void)
                     log_message(&w.log, "Cleaned pathway.", LOG_INFO);
                     break;
                 }
+                else if (choice == ACT_COLLECT_FRUIT) {
+                    int cmax_x, cmax_y;
+                    getmaxyx(stdscr, cmax_y, cmax_x);
+                    collect_state_start(&ui_state.collect, cmax_x, cmax_y);
+                    event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_COLLECT, &ui_state.collect.resolved);
+                    log_message(&w.log, "Went out to pick fruit.", LOG_INFO);
+                    break;
+                }
                 else {
                     apply_action(b, choice, &w, 0);
                     log_message(&w.log, "Action completed.", LOG_INFO);
