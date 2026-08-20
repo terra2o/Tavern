@@ -31,6 +31,7 @@ It Features:
 Here's a to-do list for this game (The ones with strikethrough are done):
 
 - Make code compatible with c89... maybe?
+- Employees, having more of them would result in having more actions per day.
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io
