@@ -11,6 +11,11 @@
 #include "../include/inflation.h"
 #include "../include/event.h"
 
+int tavern_actions_per_day(const Tavern* b)
+{
+    return 2 + b->employees;
+}
+
 void apply_action(Tavern* b, Action a, World* w, int amount)
 {
     switch (a) {
@@ -99,11 +104,46 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
 
             break;
         }
+
+        case ACT_HIRE_EMPLOYEES: {
+            int max_employees = b->tavern_size * EMPLOYEES_PER_TAVERN_SIZE;
+            if (b->employees >= max_employees) {
+                log_message(&w->log, "Tavern is full, expand it to hire more employees.", LOG_INFO);
+                break;
+            }
+
+            float employee_cut = b->employees_wage * w->inflation_rate;
+            if (b->money >= employee_cut) {
+                b->money -= employee_cut;
+                b->employees++;
+                log_message(&w->log, "You hired an employee.", LOG_INFO);
+            } else {
+                log_message(&w->log, "You don't have enough money to hire an employee.", LOG_INFO);
+            }
+            break;
+        }
+
+        case ACT_EXPAND_TAVERN: {
+            float expand_cost = TAVERN_EXPAND_BASE_COST * b->tavern_size * w->inflation_rate;
+            if (b->money >= expand_cost) {
+                b->money -= expand_cost;
+                b->tavern_size++;
+                log_message(&w->log, "You expanded the tavern.", LOG_INFO);
+            } else {
+                log_message(&w->log, "You don't have enough money to expand the tavern.", LOG_INFO);
+            }
+            break;
+        }
     }
 }
 
 void process_payment(World* w, Tavern* b, int current_day)
 {
+    int i;
+    float employee_cut = b->employees_wage * w->inflation_rate;
+    float total_paid_to_employees = 0;
+    char buf_e[256];
+
     PeriodicPayment* p = &b->rent;
     if (current_day >= p->next_payment_day) {
         float actual_rent = p->base_rent * w->inflation_rate;
@@ -112,6 +152,18 @@ void process_payment(World* w, Tavern* b, int current_day)
         p->next_payment_day += p->pay_period;
         snprintf(buf, sizeof(buf), "Paid rent: $%.2f", actual_rent);
         log_message(&w->log, buf, LOG_IMPORTANT);
+    }
+
+    if (current_day >= p->next_wage_day) {
+        if (b->employees >= 1) {
+            for (i = 0; i < b->employees; i++) {
+                b->money -= employee_cut;
+                total_paid_to_employees += employee_cut;
+            }
+            snprintf(buf_e, sizeof(buf_e), "Wage paid to employees in total $%.2f", total_paid_to_employees);
+            log_message(&w->log, buf_e, LOG_IMPORTANT);
+        }
+        p->next_wage_day += p->pay_period;
     }
 }
 

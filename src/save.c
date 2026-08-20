@@ -22,11 +22,13 @@ static void write_tavern(FILE* f, int index, const Tavern* b)
                 b->fruits[fruit].inventory.expiration_date);
     }
 
-    fprintf(f, ",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%f,%f\n",
+    fprintf(f, ",%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%f,%f,%d,%f,%d,%d\n",
             b->quality_actual, b->quality_perceived, b->rumor, b->consistency,
             b->handsomeness, b->reputation, b->last_pathway_clean_day,
             b->rent.pay_period, b->rent.next_payment_day,
-            b->rent.rent_amount, b->rent.base_rent);
+            b->rent.rent_amount, b->rent.base_rent,
+            b->employees, b->employees_wage, b->rent.next_wage_day,
+            b->tavern_size);
 }
 
 /* Returns 1 on success. Advances *cursor past everything it consumed. */
@@ -70,11 +72,12 @@ static int read_tavern(char* line, World* w)
 
     if (*cursor != ',') return 0;
     cursor++;
-    if (sscanf(cursor, "%f,%f,%f,%f,%f,%f,%d,%d,%d,%f,%f",
+    if (sscanf(cursor, "%f,%f,%f,%f,%f,%f,%d,%d,%d,%f,%f,%d,%f,%d,%d",
                &b.quality_actual, &b.quality_perceived, &b.rumor, &b.consistency,
                &b.handsomeness, &b.reputation, &b.last_pathway_clean_day,
                &b.rent.pay_period, &b.rent.next_payment_day,
-               &b.rent.rent_amount, &b.rent.base_rent) != 11) return 0;
+               &b.rent.rent_amount, &b.rent.base_rent, &b.employees,
+               &b.employees_wage, &b.rent.next_wage_day, &b.tavern_size) != 15) return 0;
 
     world_add_tavern(w, b);
     return 1;

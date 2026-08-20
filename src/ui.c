@@ -200,6 +200,9 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(++left_panel_y, 2, "Apples: %d", b->fruits[FRUIT_APPLE].inventory.amount);
     mvprintw(left_panel_y, left_col2_x, "Grapes: %d", b->fruits[FRUIT_GRAPE].inventory.amount);
 
+    mvprintw(++left_panel_y, 2, "Employees: %d/%d", b->employees, b->tavern_size * EMPLOYEES_PER_TAVERN_SIZE);
+    mvprintw(left_panel_y, left_col2_x, "Tavern size: %d", b->tavern_size);
+
     color = (b->reputation < 0.3f) ? COLOR_YELLOW : COLOR_NORMAL;
     attron(COLOR_PAIR(color));
     mvprintw(++left_panel_y, 2, "Reputation: %.2f", b->reputation);
@@ -261,6 +264,10 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(7, right_col2_x, "Q - Quit game");
     mvprintw(8, right_start + 2, "9 - Collect fruits");
     mvprintw(8, right_col2_x, "M - Make wines with fruits");
+
+    mvprintw(9, right_start + 2, "P - Hire employee ($%.2f)", b->employees_wage * w->inflation_rate);
+    mvprintw(9, right_col2_x, "X - Expand tavern ($%.2f)",
+             TAVERN_EXPAND_BASE_COST * b->tavern_size * w->inflation_rate);
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
@@ -737,6 +744,10 @@ static const struct { int key; Action action; } ACTION_KEYS[] = {
     { '9', ACT_COLLECT_FRUIT },
     { 'M', ACT_MAKE_WINE },
     { 'm', ACT_MAKE_WINE },
+    { 'P', ACT_HIRE_EMPLOYEES },
+    { 'p', ACT_HIRE_EMPLOYEES },
+    { 'X', ACT_EXPAND_TAVERN },
+    { 'x', ACT_EXPAND_TAVERN },
 };
 
 /* Convert a character to an action (only valid in NORMAL mode) */

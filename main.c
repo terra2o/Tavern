@@ -230,6 +230,10 @@ static Tavern make_starter_tavern(const World* w, int merchant_id, const Merchan
     b.rent.next_payment_day = w->day + b.rent.pay_period;
     b.rent.rent_amount = 1500;
     b.rent.base_rent = 1500;
+    b.rent.next_wage_day = w->day + b.rent.pay_period;
+    b.employees = 0;
+    b.employees_wage = 500.0f;
+    b.tavern_size = 1;
     return b;
 }
 
@@ -287,8 +291,6 @@ int main(void)
 
     Tavern* b = &w.taverns[w.player_tavern_id];
 
-    int actions_per_day = 2;
-
     initscr();
 #ifdef _WIN32
     windows_shrink_console_font();
@@ -318,6 +320,9 @@ int main(void)
     ui_state.war.our_kingdom_attack = w.our_kingdom_attack;
 
     while (game_running) {
+        /* Recomputed each day since hiring can change it mid-game */
+        int actions_per_day = tavern_actions_per_day(b);
+
         /* Allow multiple actions per day */
         for (int action_num = 1;
              action_num <= actions_per_day && game_running;
@@ -382,7 +387,11 @@ int main(void)
                 }
                 else {
                     apply_action(b, choice, &w, 0);
-                    log_message(&w.log, "Action completed.", LOG_INFO);
+                    /* hire/expand already log their own outcome (success or
+                       failure) inside apply_action, so logging a generic
+                       "completed" here would contradict a failure message */
+                    if (choice != ACT_HIRE_EMPLOYEES && choice != ACT_EXPAND_TAVERN)
+                        log_message(&w.log, "Action completed.", LOG_INFO);
                     break;
                 }
             }

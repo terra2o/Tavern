@@ -10,11 +10,15 @@
 
 #define CLAMP(x,a,b) ((x)<(a)?(a):((x)>(b)?(b):(x)))
 
+#define EMPLOYEES_PER_TAVERN_SIZE 4
+#define TAVERN_EXPAND_BASE_COST 2000.0f
+
 typedef struct PeriodicPayment {
     int pay_period;
     int next_payment_day;
     float rent_amount;
     float base_rent; /* Original rent at game start; actual charge = base_rent * inflation_rate */
+    int next_wage_day;
 } PeriodicPayment;
 
 typedef struct Tavern {
@@ -46,6 +50,16 @@ typedef struct Tavern {
     int last_pathway_clean_day;
 
     PeriodicPayment rent;
+
+    /* actions start at 2 per day, having more employees make it higher
+       each employee increments by 1, e.g. having 1 employee would result
+       in 3 actions per day */
+    int employees;
+    float employees_wage;
+    /* player must increase this if they hit the employee "limit",
+     * having 1 tavern_size is the default and means you can't have
+     * more than 4 employees, and if you had 2, you can have 8 employees*/
+    int tavern_size;
 
     /* supplier_id is the source of truth (used for save/load and
        re-pointing after the merchant pool is (re)allocated); supplier
@@ -79,10 +93,15 @@ typedef enum {
     ACT_ADJUST_WINE_PRICE,
     ACT_COLLECT_FRUIT,
     ACT_MAKE_WINE,
+    ACT_HIRE_EMPLOYEES,
+    ACT_EXPAND_TAVERN,
 } Action;
 
 /* Compute reputation from quality, rumor, consistency, handsomeness */
 float compute_reputation(Tavern* b);
+
+/* Base actions per day plus one per employee */
+int tavern_actions_per_day(const Tavern* b);
 
 /* Apply an action to the tavern state */
 void apply_action(Tavern* b, Action a, World* w, int amount);
