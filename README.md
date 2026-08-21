@@ -27,11 +27,12 @@ It Features:
 - Changes in population, so the potential customer number is not stable
 - Winery. You can make your own wine with fruits
 - A top-down 2D mini-game where you collect fruits for making wine
+- Employees. You can hire them to increase available actions per day
+- Expanding the tavern. You can only hire limited amount of employees per tavern "size"
 
 Here's a to-do list for this game (The ones with strikethrough are done):
 
 - Make code compatible with c89... maybe?
-- Employees, having more of them would result in having more actions per day.
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io
