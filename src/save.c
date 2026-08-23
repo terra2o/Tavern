@@ -310,7 +310,8 @@ int load_game(const char* path, World* w)
     if (w->merchant_count == 0) {
         Merchant fallback = {0};
         fallback.drink_price[DRINK_ALE] = 5.0f;
-        fallback.drink_price[DRINK_WINE] = 90.0f;
+        fallback.drink_price[DRINK_WINE_APPLE] = 90.0f;
+        fallback.drink_price[DRINK_WINE_GRAPE] = 90.0f;
         fallback.quality = 0.7f;
         fallback.instability = 0.2f;
         merchant_init_default_stock(&fallback);

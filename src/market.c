@@ -24,9 +24,10 @@
 #define DROUGHT_BONUS_CAP 0.3f
 
 /* Won't spend more than this fraction of current wealth on one drink.
-   Wine costs far more than ale, so citizens treat it as an occasional
-   splurge instead of judging it by the same everyday budget as ale. */
-static const float MAX_SPEND_FRACTION_OF_WEALTH[DRINK_COUNT] = { 0.20f, 0.50f };
+   Either wine variety costs far more than ale, so citizens treat wine
+   as an occasional splurge instead of judging it by the same everyday
+   budget as ale. */
+static const float MAX_SPEND_FRACTION_OF_WEALTH[DRINK_COUNT] = { 0.20f, 0.50f, 0.50f };
 
 /* Bonus score for sticking with your favorite tavern over a new one */
 #define FAVORITE_TAVERN_BONUS 0.3f

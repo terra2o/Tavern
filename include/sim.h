@@ -16,6 +16,7 @@
 #include "game_state.h"
 #include "drink.h"
 #include "fruit.h"
+#include "wine.h"
 #include <math.h>
 
 #define CLAMP(x,a,b) ((x)<(a)?(a):((x)>(b)?(b):(x)))
@@ -112,6 +113,10 @@ float compute_reputation(Tavern* b);
 
 /* Base actions per day plus one per employee */
 int tavern_actions_per_day(const Tavern* b);
+
+/* Recomputes b->total_inventory as the sum of every drink's amount.
+   Call after any purchase/sale/crafting that changes drinks[].amount. */
+void tavern_recompute_total_inventory(Tavern* b);
 
 /* Apply an action to the tavern state */
 void apply_action(Tavern* b, Action a, World* w, int amount);

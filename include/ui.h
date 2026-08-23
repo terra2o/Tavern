@@ -28,7 +28,9 @@ typedef enum {
     UI_MODE_WAR_REFUGEES,
     UI_MODE_WAR_ATTACK,
     UI_MODE_SUPPLIER,
-    UI_MODE_COLLECT
+    UI_MODE_COLLECT,
+    UI_MODE_WINE_VARIETY,
+    UI_MODE_DETAIL
 } UiMode;
 
 /* Describes the number-input prompt an action needs before it can
@@ -74,6 +76,8 @@ typedef struct {
     WarAttackState war_attack;
     SupplierState supplier;
     CollectState collect;
+    WineType pending_wine;
+    char wine_prompt_buf[64];
 } UiState;
 
 /* Initialize ncurses color pairs */

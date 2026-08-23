@@ -15,10 +15,13 @@
 
 /* Add new drinks here, and bump DRINK_COUNT.
    Then add matching entries wherever a DRINK_COUNT-sized array
-   is filled in (merchant.c balancing, citizen spawn preference, etc). */
+   is filled in (merchant.c balancing, citizen spawn preference, etc).
+   The two wine entries must stay adjacent and in this order -
+   wine.h's WINE_TO_DRINK() maps WineType onto them by offset. */
 typedef enum {
     DRINK_ALE,
-    DRINK_WINE,
+    DRINK_WINE_APPLE,
+    DRINK_WINE_GRAPE,
     DRINK_COUNT
 } DrinkType;
 

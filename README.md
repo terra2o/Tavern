@@ -29,6 +29,7 @@ It Features:
 - A top-down 2D mini-game where you collect fruits for making wine
 - Employees. You can hire them to increase available actions per day
 - Expanding the tavern. You can only hire limited amount of employees per tavern "size"
+- Different kinds of wine (apple and grape)
 
 Here's a to-do list for this game (The ones with strikethrough are done):
 

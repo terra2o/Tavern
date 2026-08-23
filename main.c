@@ -211,11 +211,14 @@ static Tavern make_starter_tavern(const World* w, int merchant_id, const Merchan
     Tavern b = {0};
     b.money = 700.0f;
     b.drinks[DRINK_ALE].price = 5.0f;
-    b.drinks[DRINK_WINE].price = 120.0f;
+    b.drinks[DRINK_WINE_APPLE].price = 120.0f;
+    b.drinks[DRINK_WINE_GRAPE].price = 120.0f;
     b.drinks[DRINK_ALE].inventory.amount = 10;
-    b.drinks[DRINK_WINE].inventory.amount = 2;
+    b.drinks[DRINK_WINE_APPLE].inventory.amount = 2;
+    b.drinks[DRINK_WINE_GRAPE].inventory.amount = 2;
     b.last_drink_price[DRINK_ALE] = 1.0f;
-    b.last_drink_price[DRINK_WINE] = 1.0f;
+    b.last_drink_price[DRINK_WINE_APPLE] = 1.0f;
+    b.last_drink_price[DRINK_WINE_GRAPE] = 1.0f;
     b.fruits[FRUIT_APPLE].inventory.expiration_date = 30;
     b.fruits[FRUIT_GRAPE].inventory.expiration_date = 30;
     b.fruits[FRUIT_APPLE].inventory.amount = 1;
@@ -251,7 +254,8 @@ static void init_new_game(World* w)
 
     Merchant m_init = {0};
     m_init.drink_price[DRINK_ALE] = 5.0f;
-    m_init.drink_price[DRINK_WINE] = 90.0f;
+    m_init.drink_price[DRINK_WINE_APPLE] = 90.0f;
+    m_init.drink_price[DRINK_WINE_GRAPE] = 90.0f;
     m_init.quality = 0.7f;
     m_init.instability = 0.2f;
     merchant_init_default_stock(&m_init);
@@ -265,7 +269,8 @@ static void init_new_game(World* w)
        merchants instead of sharing one. */
     Merchant m_rival = {0};
     m_rival.drink_price[DRINK_ALE] = 4.5f;
-    m_rival.drink_price[DRINK_WINE] = 90.0f;
+    m_rival.drink_price[DRINK_WINE_APPLE] = 90.0f;
+    m_rival.drink_price[DRINK_WINE_GRAPE] = 90.0f;
     m_rival.quality = 0.6f;
     m_rival.instability = 0.35f;
     merchant_init_default_stock(&m_rival);
@@ -303,6 +308,14 @@ int main(void)
     noecho();
     keypad(stdscr, TRUE);
     nodelay(stdscr, TRUE);
+#ifndef PDCURSES
+    /* ncurses holds a lone ESC for up to ESCDELAY ms (often ~1000) in
+       case it's the start of an escape sequence, which makes every ESC
+       cancel/close in this game feel like it needs a second press to
+       actually register. PDCurses reads console key events directly
+       and has no such delay, so it doesn't need (or have) this call. */
+    set_escdelay(25);
+#endif
     init_colors();
     curs_set(0);
 
@@ -361,6 +374,11 @@ int main(void)
                     continue;
                 }
 
+                if (ch == 'd' || ch == 'D') {
+                    ui_state.mode = UI_MODE_DETAIL;
+                    continue;
+                }
+
                 Action choice = read_action(ch);
 
                 if (choice == (Action)-1) {
@@ -369,6 +387,10 @@ int main(void)
                 }
                 else if (choice == (Action)-2)
                     continue;
+                else if (choice == ACT_BUY_WINE || choice == ACT_ADJUST_WINE_PRICE) {
+                    ui_state.pending_action = choice;
+                    ui_state.mode = UI_MODE_WINE_VARIETY;
+                }
                 else if (find_action_input_spec(choice) != NULL) {
                     const ActionInputSpec* spec = find_action_input_spec(choice);
                     ui_state.pending_action = choice;
@@ -434,11 +456,12 @@ int main(void)
 
         save_game(SAVE_PATH, &w);
 
+        int total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount + b->drinks[DRINK_WINE_GRAPE].inventory.amount;
         char buf_l[256];
         snprintf(buf_l, sizeof(buf_l),
                  "End of day %d: %d sales | Money: $%.2f | Ale: %d | Wine: %d | Rep: %.2f",
                  w.day, sales, b->money, b->drinks[DRINK_ALE].inventory.amount,
-                 b->drinks[DRINK_WINE].inventory.amount, b->reputation);
+                 total_wine, b->reputation);
         log_message(&w.log, buf_l, LOG_IMPORTANT);
     }
 

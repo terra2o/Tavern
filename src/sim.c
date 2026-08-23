@@ -26,6 +26,14 @@ int tavern_actions_per_day(const Tavern* b)
     return 2 + b->employees;
 }
 
+void tavern_recompute_total_inventory(Tavern* b)
+{
+    int d;
+    b->total_inventory = 0;
+    for (d = 0; d < DRINK_COUNT; d++)
+        b->total_inventory += b->drinks[d].inventory.amount;
+}
+
 void apply_action(Tavern* b, Action a, World* w, int amount)
 {
     switch (a) {
@@ -65,21 +73,16 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
             float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_ALE);
             b->drinks[DRINK_ALE].inventory.amount += qty;
             b->money -= qty * unit_price;
-            b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+            tavern_recompute_total_inventory(b);
             merchant_record_purchase(b->supplier, b->id, DRINK_ALE, qty);
             break;
         }
 
-        case ACT_BUY_WINE: {
-            int qty = amount < merchant_available_stock(b->supplier, DRINK_WINE)
-                ? amount : merchant_available_stock(b->supplier, DRINK_WINE);
-            float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_WINE);
-            b->drinks[DRINK_WINE].inventory.amount += qty;
-            b->money -= qty * unit_price;
-            b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
-            merchant_record_purchase(b->supplier, b->id, DRINK_WINE, qty);
+        case ACT_BUY_WINE:
+            /* handled outside apply_action - buying now needs to know
+               which wine variety, which this function has no way to
+               receive, so ui.c's ui_process_action does the real work */
             break;
-        }
 
         case ACT_ADJUST_ALE_PRICE:
             /* handled outside apply_action */
@@ -98,18 +101,21 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
             break;
 
         case ACT_MAKE_WINE: {
-            /* NOTE: planning to make specific wines, like apple wine and grape... this is it for now though */
-            int total_wine_made = 0;
+            /* FruitType and WineType share apple-then-grape order, so
+               fruit i becomes wine variety i - no per-variety branching. */
+            int made[WINE_COUNT];
             char buf[256];
-            long unsigned int i;
+            int i;
 
             for (i = 0; i < FRUIT_COUNT; i++) {
-                total_wine_made += b->fruits[i].inventory.amount;
+                made[i] = b->fruits[i].inventory.amount;
+                b->drinks[WINE_TO_DRINK(i)].inventory.amount += made[i];
                 b->fruits[i].inventory.amount = 0;
             }
-            b->drinks[DRINK_WINE].inventory.amount += total_wine_made;
+            tavern_recompute_total_inventory(b);
 
-            snprintf(buf, sizeof(buf), "You made some wine. You made %d of them in total", total_wine_made);
+            snprintf(buf, sizeof(buf), "You made %d apple wine and %d grape wine.",
+                     made[WINE_APPLE], made[WINE_GRAPE]);
             log_message(&w->log, buf, LOG_INFO);
 
             break;
@@ -223,7 +229,7 @@ static void tavern_post_market(Tavern* b, const DayResult* day)
 
     sales_today = 0;
     for (d = 0; d < DRINK_COUNT; d++) sales_today += day->sales[d];
-    b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+    tavern_recompute_total_inventory(b);
     reputation_tick(b, sales_today);
 }
 

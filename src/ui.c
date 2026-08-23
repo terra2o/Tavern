@@ -29,6 +29,11 @@
 #define APPLE     'A'
 #define GRAPE     'G'
 
+/* Display names for each DrinkType, in enum order. Used anywhere a
+   drink needs a label instead of a hardcoded string, the overview
+   board, the supplier screen, and the wine buy/price log messages. */
+static const char* const DRINK_NAMES[DRINK_COUNT] = { "Ale", "Apple wine", "Grape wine" };
+
 #define STRING_ARRAY_MAX 32
 #define STRING_ARRAY_LEN 256
 #define PUSH_STR(arr, count, s) \
@@ -43,12 +48,12 @@ char string_array[STRING_ARRAY_MAX][STRING_ARRAY_LEN];
 int  string_array_count = 0;
 
 /*
- * Rows 0-9 are needed by the left/right status and action panels
+ * Rows 0-10 are needed by the left/right status and action panels
  * (each panel is laid out as two inner columns to stay compact).
  * On short terminals a fixed LOG_HEIGHT would push the log over
  * that content, so shrink the log (down to a small floor) instead.
  */
-#define PANEL_CONTENT_ROWS 10
+#define PANEL_CONTENT_ROWS 11
 #define LOG_MIN_HEIGHT 4
 
 static int get_log_height(int max_y)
@@ -71,6 +76,8 @@ void ui_state_init(UiState* state)
     state->steal.resolved = 0;
     state->supplier.selected = 0;
     memset(&state->collect, 0, sizeof(state->collect));
+    state->pending_wine = WINE_APPLE;
+    memset(state->wine_prompt_buf, 0, sizeof(state->wine_prompt_buf));
 }
 
 int color_for_severity(LogSeverity s) 
@@ -196,8 +203,9 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(left_panel_y, left_col2_x, "Money: $%.2f", b->money);
     attroff(COLOR_PAIR(color));
 
+    int total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount + b->drinks[DRINK_WINE_GRAPE].inventory.amount;
     mvprintw(++left_panel_y, 2, "Ale: %d mugs ($%.2f)", b->drinks[DRINK_ALE].inventory.amount, b->drinks[DRINK_ALE].price);
-    mvprintw(left_panel_y, left_col2_x, "Wine: %d glasses ($%.2f)", b->drinks[DRINK_WINE].inventory.amount, b->drinks[DRINK_WINE].price);
+    mvprintw(left_panel_y, left_col2_x, "Total Wine: %d", total_wine);
 
     mvprintw(++left_panel_y, 2, "Apples: %d", b->fruits[FRUIT_APPLE].inventory.amount);
     mvprintw(left_panel_y, left_col2_x, "Grapes: %d", b->fruits[FRUIT_GRAPE].inventory.amount);
@@ -259,7 +267,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(4, right_start + 2, "5 - Advertise");
     mvprintw(4, right_col2_x, "6 - Clean pathway");
     mvprintw(5, right_start + 2, "7 - Buy ale ($%.2f/mug)", merchant_quote_price(b->supplier, b->id, DRINK_ALE));
-    mvprintw(5, right_col2_x, "8 - Buy wine ($%.2f/glass)", merchant_quote_price(b->supplier, b->id, DRINK_WINE));
+    mvprintw(5, right_col2_x, "8 - Buy wine");
     mvprintw(6, right_start + 2, "W - Adjust ale price");
     mvprintw(6, right_col2_x, "E - Adjust wine price");
     mvprintw(7, right_start + 2, "S - View/switch suppliers");
@@ -270,6 +278,8 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(9, right_start + 2, "P - Hire employee ($%.2f)", b->employees_wage * w->inflation_rate);
     mvprintw(9, right_col2_x, "X - Expand tavern ($%.2f)",
              TAVERN_EXPAND_BASE_COST * b->tavern_size * w->inflation_rate);
+
+    mvprintw(10, right_start + 2, "D - Overview");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
@@ -282,7 +292,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     if (ui_state->mode == UI_MODE_NUMBER_INPUT) {
         NumberInputState* ni = &ui_state->number_input;
         int input_y = max_y - 8;
-        
+
         /* Semi-transparent overlay effect using windows */
         attron(A_DIM);
         mvprintw(input_y, 2, "%s", ni->prompt);
@@ -388,17 +398,43 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
             char line[160];
             char marker = (i == ui_state->supplier.selected) ? '>' : ' ';
             char current = (i == b->supplier_id) ? '*' : ' ';
-            snprintf(line, sizeof(line),
-                     "%c%c #%d  qual %.2f  risk %.2f  ale $%.2f (stock %d)  wine $%.2f (stock %d)  favor %.2f",
-                     marker, current, i, m->quality, m->instability,
-                     merchant_quote_price(m, b->id, DRINK_ALE), merchant_available_stock(m, DRINK_ALE),
-                     merchant_quote_price(m, b->id, DRINK_WINE), merchant_available_stock(m, DRINK_WINE),
-                     m->tavern_favor[b->id]);
+            int off = snprintf(line, sizeof(line), "%c%c #%d  qual %.2f  risk %.2f",
+                                marker, current, i, m->quality, m->instability);
+            for (int d = 0; d < DRINK_COUNT && off < (int)sizeof(line); d++) {
+                off += snprintf(line + off, sizeof(line) - off, "  %s $%.2f (stock %d)",
+                                 DRINK_NAMES[d], merchant_quote_price(m, b->id, d),
+                                 merchant_available_stock(m, d));
+            }
+            if (off < (int)sizeof(line))
+                snprintf(line + off, sizeof(line) - off, "  favor %.2f", m->tavern_favor[b->id]);
             PUSH_STR(string_array, string_array_count, line);
         }
-        draw_centered_box(78, 8 + w->merchant_count, max_x, max_y, "SUPPLIERS  (* = current)");
+        draw_centered_box(max_x - 2, 8 + w->merchant_count, max_x, max_y, "SUPPLIERS  (* = current)");
     }
- 
+
+    /* --- WINE VARIETY PROMPT --- */
+    if (ui_state->mode == UI_MODE_WINE_VARIETY) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "A - Apple wine");
+        PUSH_STR(string_array, string_array_count, "G - Grape wine");
+        PUSH_STR(string_array, string_array_count, "ESC - cancel");
+        draw_centered_box(40, 7, max_x, max_y, "WHICH WINE?");
+    }
+
+    /* --- OVERVIEW BOARD --- */
+    if (ui_state->mode == UI_MODE_DETAIL) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "ESC to close.");
+        PUSH_STR(string_array, string_array_count, "");
+        for (int d = 0; d < DRINK_COUNT; d++) {
+            char line[96];
+            snprintf(line, sizeof(line), "%-12s $%.2f  (%d in stock)",
+                     DRINK_NAMES[d], b->drinks[d].price, b->drinks[d].inventory.amount);
+            PUSH_STR(string_array, string_array_count, line);
+        }
+        draw_centered_box(48, 6 + DRINK_COUNT, max_x, max_y, "OVERVIEW");
+    }
+
     if (ui_state->mode == UI_MODE_WAR_ATTACK) {
         string_array_count = 0;
         PUSH_STR(string_array, string_array_count, "What do you do?");
@@ -662,6 +698,49 @@ static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, World* w)
     }
 }
 
+/* Handles the "which wine?" prompt that ACT_BUY_WINE and
+   ACT_ADJUST_WINE_PRICE both go through before their usual number
+   input, since which prompt/price applies depends on the variety. */
+static void ui_handle_wine_variety(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    (void)b;
+    (void)w;
+
+    if (ch == 27) { /* ESC */
+        ui_state->mode = UI_MODE_NORMAL;
+        return;
+    }
+
+    if (ch == 'a' || ch == 'A')
+        ui_state->pending_wine = WINE_APPLE;
+    else if (ch == 'g' || ch == 'G')
+        ui_state->pending_wine = WINE_GRAPE;
+    else
+        return;
+
+    const char* wine_name = DRINK_NAMES[WINE_TO_DRINK(ui_state->pending_wine)];
+
+    if (ui_state->pending_action == ACT_BUY_WINE) {
+        snprintf(ui_state->wine_prompt_buf, sizeof(ui_state->wine_prompt_buf),
+                 "Buy how many glasses of %s? ", wine_name);
+        ui_start_number_input(ui_state, ui_state->wine_prompt_buf, 1, 10000, 0);
+    } else if (ui_state->pending_action == ACT_ADJUST_WINE_PRICE) {
+        snprintf(ui_state->wine_prompt_buf, sizeof(ui_state->wine_prompt_buf),
+                 "New %s price (e.g. 125.00): ", wine_name);
+        ui_start_number_input(ui_state, ui_state->wine_prompt_buf, 0.1f, 500.0f, 1);
+    }
+}
+
+/* Handles the read-only overview board. Only ESC closes it - 'd'/'D'
+   can't double as close, since main.c checks that same raw key to
+   open the board, and closing back to UI_MODE_NORMAL before that
+   check runs would make it immediately reopen. */
+static void ui_handle_detail(int ch, UiState* ui_state)
+{
+    if (ch == 27)
+        ui_state->mode = UI_MODE_NORMAL;
+}
+
 /* Updates UI state based on input, handling mode-specific logic. */
 void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
 {
@@ -692,6 +771,10 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
         ui_handle_war_attack(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_SUPPLIER) {
         ui_handle_supplier(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_WINE_VARIETY) {
+        ui_handle_wine_variety(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_DETAIL) {
+        ui_handle_detail(ch, ui_state);
     } else if (ui_state->mode == UI_MODE_COLLECT) {
         collect_handle_input(ch, &ui_state->collect, b);
     } else if (ui_state->mode == UI_MODE_NORMAL) {
@@ -709,13 +792,15 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
 /* Actions that need a number/text input before they take effect.
    Single source of truth for whether an action needs input and what
    the prompt looks like. Adding an input-driven action means adding
-   one row here, not a new branch in main.c's dispatch. */
+   one row here, not a new branch in main.c's dispatch.
+   ACT_BUY_WINE and ACT_ADJUST_WINE_PRICE aren't here - their prompt
+   depends on which wine variety was picked first, so main.c routes
+   them through UI_MODE_WINE_VARIETY instead, and their prompt text
+   is built dynamically by ui_handle_wine_variety(). */
 static const ActionInputSpec ACTION_INPUT_SPECS[] = {
     { ACT_ADVERTISE,          "Advertise budget (1-10000): ", 1,    10000, 0 },
     { ACT_ADJUST_ALE_PRICE,   "New ale price (e.g. 3.50): ",  0.1f, 500.0f, 1 },
-    { ACT_ADJUST_WINE_PRICE,  "New wine price (e.g. 5.00): ", 0.1f, 500.0f, 1 },
     { ACT_BUY_ALE,            "Buy how many mugs? ",          1,    10000, 0 },
-    { ACT_BUY_WINE,           "Buy how many glasses? ",       1,    10000, 0 },
 };
 
 const ActionInputSpec* find_action_input_spec(Action a)
@@ -788,10 +873,11 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
             }
             case ACT_ADJUST_WINE_PRICE:
             {
+                DrinkType dt = WINE_TO_DRINK(ui_state->pending_wine);
                 float fval = ui_state->number_input.float_result;
-                b->drinks[DRINK_WINE].price = CLAMP(fval, 0.1f, 500.0f);
+                b->drinks[dt].price = CLAMP(fval, 0.1f, 500.0f);
                 char buf[128];
-                snprintf(buf, sizeof(buf), "Price adjusted to $%.2f", b->drinks[DRINK_WINE].price);
+                snprintf(buf, sizeof(buf), "%s price adjusted to $%.2f", DRINK_NAMES[dt], b->drinks[dt].price);
                 log_message(&w->log, buf, LOG_INFO);
                 break;
             }
@@ -825,7 +911,7 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
                     else {
                         b->money -= affordable * unit_price;
                         b->drinks[DRINK_ALE].inventory.amount += affordable;
-                        b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+                        tavern_recompute_total_inventory(b);
                         merchant_record_purchase(b->supplier, b->id, DRINK_ALE, affordable);
 
                         char buf[128];
@@ -836,7 +922,7 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
                 else {
                     b->money -= cost;
                     b->drinks[DRINK_ALE].inventory.amount += want;
-                    b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
+                    tavern_recompute_total_inventory(b);
                     merchant_record_purchase(b->supplier, b->id, DRINK_ALE, want);
 
                     char buf[128];
@@ -850,12 +936,16 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
 
             case ACT_BUY_WINE:
             {
-                int in_stock = merchant_available_stock(b->supplier, DRINK_WINE);
-                float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_WINE);
+                DrinkType dt = WINE_TO_DRINK(ui_state->pending_wine);
+                const char* name = DRINK_NAMES[dt];
+                int in_stock = merchant_available_stock(b->supplier, dt);
+                float unit_price = merchant_quote_price(b->supplier, b->id, dt);
                 int want = input_value < in_stock ? input_value : in_stock;
 
                 if (want <= 0) {
-                    log_message(&w->log, "The merchant is out of wine today.", LOG_INFO);
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "The merchant is out of %s today.", name);
+                    log_message(&w->log, buf, LOG_INFO);
                     break;
                 }
 
@@ -864,29 +954,32 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
                 if (b->money < cost) {
                     int affordable = (int)(b->money / unit_price);
                     if (affordable > want) affordable = want;
-                    if (affordable <= 0)
-                        log_message(&w->log, "Cannot afford any wine.", LOG_INFO);
+                    if (affordable <= 0) {
+                        char buf[128];
+                        snprintf(buf, sizeof(buf), "Cannot afford any %s.", name);
+                        log_message(&w->log, buf, LOG_INFO);
+                    }
                     else {
                         b->money -= affordable * unit_price;
-                        b->drinks[DRINK_WINE].inventory.amount += affordable;
-                        b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
-                        merchant_record_purchase(b->supplier, b->id, DRINK_WINE, affordable);
+                        b->drinks[dt].inventory.amount += affordable;
+                        tavern_recompute_total_inventory(b);
+                        merchant_record_purchase(b->supplier, b->id, dt, affordable);
 
                         char buf[128];
-                        snprintf(buf, sizeof(buf), "Bought %d glasses", affordable);
+                        snprintf(buf, sizeof(buf), "Bought %d glasses of %s", affordable, name);
                         log_message(&w->log, buf, LOG_INFO);
                     }
                 }
                 else {
                     b->money -= cost;
-                    b->drinks[DRINK_WINE].inventory.amount += want;
-                    b->total_inventory = b->drinks[DRINK_ALE].inventory.amount + b->drinks[DRINK_WINE].inventory.amount;
-                    merchant_record_purchase(b->supplier, b->id, DRINK_WINE, want);
+                    b->drinks[dt].inventory.amount += want;
+                    tavern_recompute_total_inventory(b);
+                    merchant_record_purchase(b->supplier, b->id, dt, want);
 
                     char buf[128];
                     snprintf(buf, sizeof(buf),
-                             "Bought %d glasses for $%.2f",
-                             want, cost);
+                             "Bought %d glasses of %s for $%.2f",
+                             want, name, cost);
                     log_message(&w->log, buf, LOG_INFO);
                 }
                 break;

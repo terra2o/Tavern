@@ -13,13 +13,15 @@
 #include "../include/sim.h"
 
 /* Per-drink balancing: how volatile the price is, and its min/max
-   before inflation is applied. Add a row here when adding a drink. */
-static const float DRINK_MIN_PRICE[DRINK_COUNT]  = { 3.0f, 80.0f };
-static const float DRINK_MAX_PRICE[DRINK_COUNT]  = { 8.0f, 120.0f };
+   before inflation is applied. Add a row here when adding a drink.
+   Apple wine and grape wine start out balanced identically to each
+   other (same numbers the old single DRINK_WINE used). */
+static const float DRINK_MIN_PRICE[DRINK_COUNT]  = { 3.0f, 80.0f, 80.0f };
+static const float DRINK_MAX_PRICE[DRINK_COUNT]  = { 8.0f, 120.0f, 120.0f };
 
-static const float DRINK_DEFAULT_MAX_STOCK[DRINK_COUNT]       = { 400.0f, 150.0f };
-static const float DRINK_DEFAULT_RESTOCK_RATE[DRINK_COUNT]    = { 40.0f, 12.0f };
-static const float DRINK_STOCK_PRICE_SENSITIVITY[DRINK_COUNT] = { 0.35f, 0.35f };
+static const float DRINK_DEFAULT_MAX_STOCK[DRINK_COUNT]       = { 400.0f, 150.0f, 150.0f };
+static const float DRINK_DEFAULT_RESTOCK_RATE[DRINK_COUNT]    = { 40.0f, 12.0f, 12.0f };
+static const float DRINK_STOCK_PRICE_SENSITIVITY[DRINK_COUNT] = { 0.35f, 0.35f, 0.35f };
 
 #define FAVOR_DISCOUNT_MAX    0.15f
 #define FAVOR_GAIN_PER_UNIT   0.002f
