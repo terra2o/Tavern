@@ -1,3 +1,13 @@
+/*
+*
+* merchant.c for Tavern
+*
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
+*
+*/
+
 #include "../include/merchant.h"
 #include "../include/sim_random.h"
 #include "../include/sim.h"

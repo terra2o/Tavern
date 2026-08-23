@@ -1,3 +1,13 @@
+/*
+*
+* collect_game.h for Tavern
+*
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
+*
+*/
+
 #ifndef COLLECT_GAME_H
 #define COLLECT_GAME_H
 

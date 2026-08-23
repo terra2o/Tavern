@@ -1,3 +1,13 @@
+/*
+*
+* population.h for Tavern
+*
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
+*
+*/
+
 #ifndef POPULATION_H
 #define POPULATION_H
 

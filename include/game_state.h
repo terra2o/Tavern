@@ -1,3 +1,13 @@
+/*
+*
+* game_state.h for Tavern
+*
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
+*
+*/
+
 #ifndef GAME_STATE_H
 #define GAME_STATE_H
 

@@ -1,3 +1,13 @@
+/*
+*
+* population.c for Tavern
+*
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
+*
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "../include/sim_random.h"

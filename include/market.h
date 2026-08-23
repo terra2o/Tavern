@@ -1,3 +1,13 @@
+/*
+*
+* market.h for Tavern
+*
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
+*
+*/
+
 #ifndef MARKET_H
 #define MARKET_H
 

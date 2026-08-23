@@ -1,3 +1,13 @@
+/*
+*
+* market.c for Tavern
+*
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
+*
+*/
+
 #include "../include/sim.h"
 #include "../include/market.h"
 #include "../include/sim_random.h"

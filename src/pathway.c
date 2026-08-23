@@ -2,7 +2,9 @@
 *
 * pathway.c for Tavern
 *
-* Copyright 2026 terra2o
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
 *
 *
 */

@@ -1,3 +1,13 @@
+/*
+*
+* sim.h for Tavern
+*
+* Copyright 2026 terra2o and contributors
+*
+* Licensed under GPLv3
+*
+*/
+
 #ifndef SIM_H
 #define SIM_H
 
