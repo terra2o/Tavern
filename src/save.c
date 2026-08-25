@@ -178,7 +178,7 @@ int save_game(const char* path, const World* w)
                 c->last_drink_day, c->favorite_tavern_id);
         for (int d = 0; d < DRINK_COUNT; d++)
             fprintf(f, ",%f", c->drink_preference[d]);
-        fprintf(f, ",%f,%d,%d\n", c->health, c->homeless, c->alive);
+        fprintf(f, ",%f,%f,%d,%d\n", c->health, c->anger, c->homeless, c->alive);
     }
     fprintf(f, "\n");
 
@@ -278,7 +278,7 @@ int load_game(const char* path, World* w)
                 if (!ok || *cursor != ',') break;
                 cursor++;
 
-                if (sscanf(cursor, "%f,%d,%d", &c.health, &c.homeless, &c.alive) == 3
+                if (sscanf(cursor, "%f,%f,%d,%d", &c.health, &c.anger, &c.homeless, &c.alive) == 4
                     && w->population.count < w->population.capacity) {
                     w->population.citizens[w->population.count++] = c;
                 }

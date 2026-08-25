@@ -25,8 +25,9 @@ typedef struct Citizen {
     int favorite_tavern_id; /* index into World.taverns, -1 if none yet */
     float drink_preference[DRINK_COUNT]; /* affinity per drink */
     float health;        /* 0.0 to 1.0 */
-    int homeless; /* bool */
-    int alive;    /* bool */
+    int homeless;        /* bool */
+    int alive;           /* bool */
+    float anger;         /* 0.0 to 1.0 */
 } Citizen;
 
 typedef struct Population {

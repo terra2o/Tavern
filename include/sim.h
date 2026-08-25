@@ -87,7 +87,7 @@ typedef struct {
 
     /* Who showed up, for event triggers: counts of visitors whose own
        stats make trouble more likely, not a die roll. */
-    int rowdy_visitors;      /* addiction above ROWDY_ADDICTION_THRESHOLD */
+    int rowdy_visitors;      /* anger above ROWDY_ANGER_THRESHOLD */
     int destitute_visitors;  /* homeless, or wealth below DESTITUTE_WEALTH_THRESHOLD */
 } DayResult;
 

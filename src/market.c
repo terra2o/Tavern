@@ -37,10 +37,12 @@ static const float MAX_SPEND_FRACTION_OF_WEALTH[DRINK_COUNT] = { 0.20f, 0.50f, 0
 #define ADDICTION_GAIN_PER_VISIT 0.03f
 #define LOYALTY_GAIN_PER_VISIT 0.1f
 #define LOYALTY_ON_NEW_FAVORITE 0.1f
+#define ANGER_GAIN_PER_VISIT 0.02f        /* heavy drinking still stokes it a bit */
+#define ANGER_GAIN_PER_PATHWAY_FALL 0.08f /* tripping on a filthy pathway stokes it more */
 
 /* A visitor counts as "rowdy" (fight/vomit risk) or "destitute" (theft
    risk) based on their own stats, not chance. See evaluate_customer_events. */
-#define ROWDY_ADDICTION_THRESHOLD 0.6f
+#define ROWDY_ANGER_THRESHOLD 0.6f
 #define DESTITUTE_WEALTH_THRESHOLD 15.0f
 
 /* Decide whether citizen c wants to go out at all today, ignoring
@@ -78,6 +80,7 @@ static int citizen_pick_tavern(Citizen* c, World* w, int current_day,
         float pathway_loss = people_fall_because_pathway_dirty(b, current_day);
         if (pathway_loss > 0.0f && frand() < pathway_loss) {
             pathway_losses[t]++;
+            c->anger = CLAMP(c->anger + ANGER_GAIN_PER_PATHWAY_FALL, 0.0f, 1.0f);
             continue;
         }
 
@@ -124,7 +127,9 @@ static void citizen_visit(Citizen* c, World* w, int tavern_idx, int drink, int c
         c->loyalty = LOYALTY_ON_NEW_FAVORITE;
     }
 
-    if (c->addiction > ROWDY_ADDICTION_THRESHOLD) r->rowdy_visitors++;
+    c->anger = CLAMP(c->anger + ANGER_GAIN_PER_VISIT, 0.0f, 1.0f);
+
+    if (c->anger > ROWDY_ANGER_THRESHOLD) r->rowdy_visitors++;
     if (c->homeless || c->wealth < DESTITUTE_WEALTH_THRESHOLD) r->destitute_visitors++;
 }
 

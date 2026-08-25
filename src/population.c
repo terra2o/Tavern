@@ -86,6 +86,7 @@ void citizen_spawn(Population* pop)
     c->health = 1.0f;
     c->homeless = 0;
     c->alive = 1;
+    c->anger = 0.0f;
 
     pop->count++;
     pop->alive_count++;
@@ -102,6 +103,9 @@ void citizen_spawn(Population* pop)
 /* Past this many days old, a small and growing chance of natural death kicks in */
 #define OLD_AGE_THRESHOLD_DAYS 3000
 #define OLD_AGE_DEATH_CHANCE_PER_DAY 0.001f
+
+/* Anger drifts back down on its own each day unless something stokes it */
+#define ANGER_DECAY_PER_DAY 0.015f
 
 void population_tick(struct World* w)
 {
@@ -120,6 +124,8 @@ void population_tick(struct World* w)
         c->thirst = CLAMP(c->thirst + growth, 0.0f, 1.0f);
 
         c->wealth += c->income;
+
+        c->anger = CLAMP(c->anger - ANGER_DECAY_PER_DAY, 0.0f, 1.0f);
 
         if (c->addiction > HEALTHY_ADDICTION_THRESHOLD)
             c->health = CLAMP(c->health - c->addiction * HEALTH_DECAY_PER_ADDICTION, 0.0f, 1.0f);
