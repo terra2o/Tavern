@@ -39,10 +39,11 @@ void population_recount_alive(Population* pop)
     pop->alive_count = alive;
 }
 
-void population_stats(const Population* pop, float* avg_thirst, float* avg_addiction)
+void population_stats(const Population* pop, float* avg_thirst, float* avg_addiction, float* avg_anger)
 {
     float thirst_sum = 0.0f;
     float addiction_sum = 0.0f;
+    float anger_sum = 0.0f;
     int alive = 0;
 
     for (int i = 0; i < pop->count; i++) {
@@ -50,11 +51,13 @@ void population_stats(const Population* pop, float* avg_thirst, float* avg_addic
         if (!c->alive) continue;
         thirst_sum += c->thirst;
         addiction_sum += c->addiction;
+        anger_sum += c->anger;
         alive++;
     }
 
     *avg_thirst = alive > 0 ? thirst_sum / alive : 0.0f;
     *avg_addiction = alive > 0 ? addiction_sum / alive : 0.0f;
+    *avg_anger = alive > 0 ? anger_sum / alive : 0.0f;
 }
 
 /* Most citizens are working-class, but a minority spawn well-off, with

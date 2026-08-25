@@ -233,10 +233,11 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(left_panel_y, left_col2_x, "Inflation: +%.1f%%", inf_pct);
     attroff(COLOR_PAIR(inf_color));
 
-    float avg_thirst, avg_addiction;
-    population_stats(&w->population, &avg_thirst, &avg_addiction);
+    float avg_thirst, avg_addiction, avg_anger;
+    population_stats(&w->population, &avg_thirst, &avg_addiction, &avg_anger);
     mvprintw(++left_panel_y, 2, "Town thirst: %.0f%%", avg_thirst * 100.0f);
     mvprintw(left_panel_y, left_col2_x, "Town addiction: %.0f%%", avg_addiction * 100.0f);
+    mvprintw(++left_panel_y, 2, "Town anger: %.0f%%", avg_anger * 100.0f);
 
     if (w->at_war) {
         attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));

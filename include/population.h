@@ -51,6 +51,6 @@ void population_recount_alive(Population* pop);
 
 /* Averages thirst and addiction across every alive citizen. Both are
    left at 0.0 if nobody's alive. */
-void population_stats(const Population* pop, float* avg_thirst, float* avg_addiction);
+void population_stats(const Population* pop, float* avg_thirst, float* avg_addiction, float* avg_anger);
 
 #endif
