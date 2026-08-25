@@ -11,6 +11,6 @@
 #ifndef TAVERN_VERSION_H
 #define TAVERN_VERSION_H
 
-#define GAME_VERSION "0.18.0"
+#define GAME_VERSION "0.19.0"
 
 #endif
