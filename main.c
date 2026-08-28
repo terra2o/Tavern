@@ -181,32 +181,32 @@ static void windows_disable_quick_edit(void)
 }
 #endif
 
-static void event_handler(Tavern* b, World* w, UiState* ui_state, int actions_per_day, UiMode mode, int* resolved)
+static void event_handler(Tavern* b, Town* t, Kingdom* k, World* w, UiState* ui_state, int actions_per_day, UiMode mode, int* resolved)
 {
     w->pending_event = EVENT_NONE;
     ui_state->mode = mode;
     *resolved = 0;
     while (!*resolved) {
-        draw_ui(b, w->day, 0, actions_per_day, w, ui_state, &ui_state->war);
+        draw_ui(b, w->day, 0, actions_per_day, t, k, w, ui_state, &ui_state->war);
         int ch = getch();
         napms(16);
 #ifdef _WIN32
         windows_poll_resize();
         if (ch != KEY_RESIZE && ch != ERR)
-            ui_handle_input(ch, ui_state, b, w);
+            ui_handle_input(ch, ui_state, b, t, k, w);
 #else
         if (ch == KEY_RESIZE)
             resize_term(0, 0);
         else if (ch != ERR)
-            ui_handle_input(ch, ui_state, b, w);
+            ui_handle_input(ch, ui_state, b, t, k, w);
 #endif
     }
     ui_state->mode = UI_MODE_NORMAL;
 }
 
 /* Fresh tavern with default starting stats, supplied by merchant_id.
-   w is only used for w->day, to schedule the first rent payment. */
-static Tavern make_starter_tavern(const World* w, int merchant_id, const Merchant* m)
+   day is only used to schedule the first rent payment. */
+static Tavern make_starter_tavern(int day, int merchant_id, const Merchant* m)
 {
     Tavern b = {0};
     b.money = 700.0f;
@@ -232,25 +232,34 @@ static Tavern make_starter_tavern(const World* w, int merchant_id, const Merchan
     b.supplier_id = merchant_id;
     b.last_pathway_clean_day = 0;
     b.rent.pay_period = 30;
-    b.rent.next_payment_day = w->day + b.rent.pay_period;
+    b.rent.next_payment_day = day + b.rent.pay_period;
     b.rent.rent_amount = 1500;
     b.rent.base_rent = 1500;
-    b.rent.next_wage_day = w->day + b.rent.pay_period;
+    b.rent.next_wage_day = day + b.rent.pay_period;
     b.employees = 0;
     b.employees_wage = 500.0f;
     b.tavern_size = 1;
+    animals_init(&b.cats, ANIMALS_DEFAULT_CAPACITY);
     return b;
 }
 
 static void init_new_game(World* w)
 {
     w->day = 0;
-    w->last_advertised_day = 0;
-    w->inflation_rate = 1.0f;
-    w->money_supply_prev = 0.0f;
 
-    world_merchants_init(w, MAX_MERCHANTS);
-    world_taverns_init(w, MAX_TAVERNS);
+    world_kingdoms_init(w, MAX_KINGDOMS);
+
+    Kingdom kingdom = {0};
+    kingdom.inflation_rate = 1.0f;
+    kingdom.money_supply_prev = 0.0f;
+    kingdom_towns_init(&kingdom, MAX_TOWNS);
+
+    Town town = {0};
+    town.last_advertised_day = 0;
+    town_merchants_init(&town, MAX_MERCHANTS);
+    town_taverns_init(&town, MAX_TAVERNS);
+    population_init(&town.population, 100000);
+    for (int i = 0; i < 150; i++) citizen_spawn(&town.population);
 
     Merchant m_init = {0};
     m_init.drink_price[DRINK_ALE] = 5.0f;
@@ -259,10 +268,10 @@ static void init_new_game(World* w)
     m_init.quality = 0.7f;
     m_init.instability = 0.2f;
     merchant_init_default_stock(&m_init);
-    int merchant_id = world_add_merchant(w, m_init);
+    int merchant_id = town_add_merchant(&town, m_init);
 
-    Tavern b_init = make_starter_tavern(w, merchant_id, &m_init);
-    w->player_tavern_id = world_add_tavern(w, b_init);
+    Tavern b_init = make_starter_tavern(w->day, merchant_id, &m_init);
+    town.player_tavern_id = town_add_tavern(&town, b_init);
 
     /* Rival's supplier: cheaper on ale but riskier and lower quality,
        so the two starter taverns draw from genuinely different
@@ -274,13 +283,16 @@ static void init_new_game(World* w)
     m_rival.quality = 0.6f;
     m_rival.instability = 0.35f;
     merchant_init_default_stock(&m_rival);
-    int rival_merchant_id = world_add_merchant(w, m_rival);
+    int rival_merchant_id = town_add_merchant(&town, m_rival);
 
-    Tavern rival = make_starter_tavern(w, rival_merchant_id, &m_rival);
+    Tavern rival = make_starter_tavern(w->day, rival_merchant_id, &m_rival);
     rival.money = 500.0f;
-    world_add_tavern(w, rival);
+    town_add_tavern(&town, rival);
 
-    world_relink_suppliers(w);
+    town_relink_suppliers(&town);
+
+    kingdom.player_town_id = kingdom_add_town(&kingdom, town);
+    w->player_kingdom_id = world_add_kingdom(w, kingdom);
 }
 
 int main(void)
@@ -288,15 +300,15 @@ int main(void)
     srand(time(NULL));
 
     World w = {0};
-    population_init(&w.population, 100000);
-    for (int i = 0; i < 150; i++) citizen_spawn(&w.population);
 
     if (!load_game(SAVE_PATH, &w)) {
         init_new_game(&w);
         save_game(SAVE_PATH, &w);
     }
 
-    Tavern* b = &w.taverns[w.player_tavern_id];
+    Kingdom* k = world_player_kingdom(&w);
+    Town* t = world_player_town(&w);
+    Tavern* b = world_player_tavern(&w);
 
     initscr();
 #ifdef _WIN32
@@ -326,13 +338,13 @@ int main(void)
     log_message(&w.log, "Welcome! Press a key to start the best tavern simulation ever...", LOG_IMPORTANT);
 
     char pool_buf[64];
-    snprintf(pool_buf, sizeof(pool_buf), "Taverns in world: %d | Merchants: %d",
-             w.tavern_count, w.merchant_count);
+    snprintf(pool_buf, sizeof(pool_buf), "Taverns in town: %d | Merchants: %d",
+             t->tavern_count, t->merchant_count);
     log_message(&w.log, pool_buf, LOG_INFO);
 
     UiState ui_state;
     ui_state_init(&ui_state);
-    ui_state.war.our_kingdom_attack = w.our_kingdom_attack;
+    ui_state.war.our_kingdom_attack = k->our_kingdom_attack;
 
     while (game_running) {
         /* Recomputed each day since hiring can change it mid-game */
@@ -344,7 +356,7 @@ int main(void)
              action_num++) {
 
             while (1) {
-                draw_ui(b, w.day, action_num, actions_per_day, &w, &ui_state, &ui_state.war);
+                draw_ui(b, w.day, action_num, actions_per_day, t, k, &w, &ui_state, &ui_state.war);
 
                 int ch = getch();
                 napms(16);
@@ -352,16 +364,16 @@ int main(void)
 #ifdef _WIN32
                 windows_poll_resize();
                 if (ch != KEY_RESIZE && ch != ERR)
-                    ui_handle_input(ch, &ui_state, b, &w);
+                    ui_handle_input(ch, &ui_state, b, t, k, &w);
 #else
                 if (ch == KEY_RESIZE)
                     resize_term(0, 0);
                 else if (ch != ERR)
-                    ui_handle_input(ch, &ui_state, b, &w);
+                    ui_handle_input(ch, &ui_state, b, t, k, &w);
 #endif
 
                 if (ui_state.number_input.is_confirmed != 0) {
-                    ui_process_action(&ui_state, b, &w);
+                    ui_process_action(&ui_state, b, t, k, &w);
                     break;
                 }
 
@@ -397,7 +409,7 @@ int main(void)
                     ui_start_number_input(&ui_state, spec->prompt, spec->min_val, spec->max_val, spec->is_float);
                 }
                 else if (choice == ACT_CLEAN_PATHWAY) {
-                    apply_action(b, choice, &w, 0);
+                    apply_action(b, choice, t, k, &w, 0);
                     log_message(&w.log, "Cleaned pathway.", LOG_INFO);
                     break;
                 }
@@ -405,12 +417,12 @@ int main(void)
                     int cmax_x, cmax_y;
                     getmaxyx(stdscr, cmax_y, cmax_x);
                     collect_state_start(&ui_state.collect, cmax_x, cmax_y);
-                    event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_COLLECT, &ui_state.collect.resolved);
+                    event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_COLLECT, &ui_state.collect.resolved);
                     log_message(&w.log, "Went out to pick fruit.", LOG_INFO);
                     break;
                 }
                 else {
-                    apply_action(b, choice, &w, 0);
+                    apply_action(b, choice, t, k, &w, 0);
                     /* hire/expand already log their own outcome (success or
                        failure) inside apply_action, so logging a generic
                        "completed" here would contradict a failure message */
@@ -429,30 +441,30 @@ int main(void)
 
         /* Resolve any pending event before the next day */
         /* War events fire additionally when at war */
-        if (w.at_war && w.pending_event == EVENT_NONE)
-            random_war_event(&w);
+        if (k->at_war && w.pending_event == EVENT_NONE)
+            random_war_event(k, &w);
 
         /* Check if war ends */
-        if (w.at_war && w.day >= w.war_end_day) {
-            w.at_war = 0;
+        if (k->at_war && w.day >= k->war_end_day) {
+            k->at_war = 0;
             log_message(&w.log, "The war has ended. Peace returns to the land.", LOG_IMPORTANT);
         }
 
         if (w.pending_event == EVENT_FIGHT)
-            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_FIGHT, &ui_state.fight.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_FIGHT, &ui_state.fight.resolved);
         else if (w.pending_event == EVENT_VOMIT)
-            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_VOMIT, &ui_state.vomit.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_VOMIT, &ui_state.vomit.resolved);
         else if (w.pending_event == EVENT_STEAL)
-            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_STEAL, &ui_state.steal.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_STEAL, &ui_state.steal.resolved);
         else if (w.pending_event == EVENT_WAR) {
-            ui_state.war.our_kingdom_attack = w.our_kingdom_attack;
-            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_WAR, &ui_state.war.resolved);
+            ui_state.war.our_kingdom_attack = k->our_kingdom_attack;
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR, &ui_state.war.resolved);
         } else if (w.pending_event == EVENT_WAR_SOLDIERS)
-            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_WAR_SOLDIERS, &ui_state.war_soldiers.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR_SOLDIERS, &ui_state.war_soldiers.resolved);
         else if (w.pending_event == EVENT_WAR_REFUGEES)
-            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_WAR_REFUGEES, &ui_state.war_refugees.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR_REFUGEES, &ui_state.war_refugees.resolved);
         else if (w.pending_event == EVENT_WAR_ATTACK)
-            event_handler(b, &w, &ui_state, actions_per_day, UI_MODE_WAR_ATTACK, &ui_state.war_attack.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR_ATTACK, &ui_state.war_attack.resolved);
 
         save_game(SAVE_PATH, &w);
 
@@ -465,9 +477,7 @@ int main(void)
         log_message(&w.log, buf_l, LOG_IMPORTANT);
     }
 
-    population_free(&w.population);
-    world_taverns_free(&w);
-    world_merchants_free(&w);
+    world_kingdoms_free(&w);
     endwin();
 
     return 0;

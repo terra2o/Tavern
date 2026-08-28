@@ -37,11 +37,9 @@ typedef struct Population {
     int capacity;
 } Population;
 
-struct World;
-
 void population_init(Population* pop, int capacity);
 void population_free(Population* pop);
-void population_tick(struct World* w);
+void population_tick(Population* pop, MessageLog* log);
 void citizen_spawn(Population* pop);
 
 /* Recomputes alive_count by scanning citizens[]. Only needed after

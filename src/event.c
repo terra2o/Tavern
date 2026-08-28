@@ -40,17 +40,17 @@ void event_steal(World* w)
     w->pending_event = EVENT_STEAL;
 }
 
-void event_war(World* w)
+void event_war(Kingdom* k, World* w)
 {
     w->pending_event = EVENT_WAR;
-    w->at_war = 1;
-    w->our_kingdom_attack = rand() % 2;
-    w->war_end_day = w->day + 30 + rand() % 61; /* war lasts 30-90 days */
+    k->at_war = 1;
+    k->our_kingdom_attack = rand() % 2;
+    k->war_end_day = w->day + 30 + rand() % 61; /* war lasts 30-90 days */
 }
 
-void random_war_event(World* w)
+void random_war_event(Kingdom* k, World* w)
 {
-    if (!w->at_war) return;
+    if (!k->at_war) return;
 
     int roll = rand() % 4;
     if (roll == 0)
@@ -116,9 +116,9 @@ int handle_steal(int ch, Tavern* b, World* w)
     return 0;
 }
 
-void handle_war_declaration(int choice, Tavern* b, World* w)
+void handle_war_declaration(int choice, Tavern* b, Kingdom* k, World* w)
 {
-    if (w->our_kingdom_attack) {
+    if (k->our_kingdom_attack) {
         /* Our kingdom is the aggressor */
         switch (choice) {
         case 1: /* back the conquest */
@@ -188,6 +188,7 @@ void handle_war_soldiers(int choice, Tavern* b, World* w)
 {
     switch (choice) {
     case 1: /* give free drinks */
+        /* TODO: remove drinks from inventory instead of cutting money */
         b->money -= 200.0f;
         b->reputation += 0.20f;
         log_message(&w->log, "Free drinks for the troops. They'll remember your generosity.", LOG_INFO);
@@ -216,15 +217,15 @@ void handle_war_soldiers(int choice, Tavern* b, World* w)
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
 }
 
-void handle_war_refugees(int choice, Tavern* b, World* w)
+void handle_war_refugees(int choice, Tavern* b, Town* t, World* w)
 {
     switch (choice) {
     case 1: /* welcome them */
         if (rand() % 10 < 6) { /* 60% */
             b->reputation += 0.25f;
             for (int i = 0; i < 15; i++) {
-                citizen_spawn(&w->population);
-                w->population.citizens[w->population.count - 1].homeless = 1;
+                citizen_spawn(&t->population);
+                t->population.citizens[t->population.count - 1].homeless = 1;
             }
             log_message(&w->log, "You sheltered the refugees. Word of your kindness spreads.", LOG_INFO);
         } else {
@@ -284,11 +285,17 @@ void handle_war_attack(int choice, Tavern* b, World* w)
 
 void random_event(World* w)
 {
-    int chance_war = rand() % 10; /* 10% chance */
+    int i;
 
-    /* only start a new war if not already at war */
-    if (chance_war == 9 && !w->at_war)
-        event_war(w);
+    /* rolled independently per kingdom */
+    for (i = 0; i < w->kingdom_count; i++) {
+        Kingdom* k = &w->kingdoms[i];
+        int chance_war = rand() % 10; /* 10% chance */
+
+        /* only start a new war if not already at war */
+        if (chance_war == 9 && !k->at_war)
+            event_war(k, w);
+    }
 }
 
 /* AI taverns have no interactive UI, so a fight/vomit/steal there is
@@ -353,14 +360,16 @@ static void ai_handle_steal(Tavern* b, World* w, int tavern_id)
     log_message(&w->log, buf, LOG_INFO);
 }
 
-void evaluate_customer_events(World* w, int tavern_id, const DayResult* day)
+void evaluate_customer_events(Kingdom* k, Town* t, World* w, int tavern_id, const DayResult* day)
 {
-    Tavern* b = &w->taverns[tavern_id];
+    Tavern* b = &t->taverns[tavern_id];
     float fight_chance = CLAMP(day->rowdy_visitors * FIGHT_CHANCE_PER_ROWDY, 0.0f, FIGHT_CHANCE_CAP);
     float vomit_chance = CLAMP(day->rowdy_visitors * VOMIT_CHANCE_PER_ROWDY, 0.0f, VOMIT_CHANCE_CAP);
     float steal_chance = CLAMP(day->destitute_visitors * STEAL_CHANCE_PER_DESTITUTE, 0.0f, STEAL_CHANCE_CAP);
+    int is_player_tavern = (k->id == w->player_kingdom_id && t->id == k->player_town_id
+                             && tavern_id == t->player_tavern_id);
 
-    if (tavern_id == w->player_tavern_id) {
+    if (is_player_tavern) {
         if (w->pending_event != EVENT_NONE) return;
 
         if (fight_chance > 0.0f && frand() < fight_chance) {

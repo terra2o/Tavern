@@ -14,9 +14,12 @@
 #include "merchant.h"
 #include "log.h"
 #include "game_state.h"
+#include "town.h"
+#include "kingdom.h"
 #include "drink.h"
 #include "fruit.h"
 #include "wine.h"
+#include "animals.h"
 #include <math.h>
 
 #define CLAMP(x,a,b) ((x)<(a)?(a):((x)>(b)?(b):(x)))
@@ -77,6 +80,8 @@ typedef struct Tavern {
        is a cached pointer into World.merchants for fast access. */
     int supplier_id;
     Merchant* supplier;
+    int is_water_bowl_outside; /* bool */
+    Animals cats;
 } Tavern;
 
 typedef struct {
@@ -92,20 +97,21 @@ typedef struct {
 } DayResult;
 
 typedef enum {
-	ACT_SKINCARE,
-	ACT_CLEAN,
-	ACT_TALK,
-	ACT_CHECK_QUALITY,
-	ACT_ADVERTISE,
+    ACT_SKINCARE,
+    ACT_CLEAN,
+    ACT_TALK,
+    ACT_CHECK_QUALITY,
+    ACT_ADVERTISE,
     ACT_CLEAN_PATHWAY,
-	ACT_BUY_ALE,
+    ACT_BUY_ALE,
     ACT_BUY_WINE,
-	ACT_ADJUST_ALE_PRICE,
+    ACT_ADJUST_ALE_PRICE,
     ACT_ADJUST_WINE_PRICE,
     ACT_COLLECT_FRUIT,
     ACT_MAKE_WINE,
     ACT_HIRE_EMPLOYEES,
     ACT_EXPAND_TAVERN,
+    ACT_WATER_BOWL_OUTSIDE, /* makes cats drink it, making their thirst go away */
 } Action;
 
 /* Compute reputation from quality, rumor, consistency, handsomeness */
@@ -118,31 +124,17 @@ int tavern_actions_per_day(const Tavern* b);
    Call after any purchase/sale/crafting that changes drinks[].amount. */
 void tavern_recompute_total_inventory(Tavern* b);
 
-/* Apply an action to the tavern state */
-void apply_action(Tavern* b, Action a, World* w, int amount);
+/* Apply an action to the tavern state. t is b's own town (population,
+   last_advertised_day); k is b's own kingdom (inflation_rate, for
+   hire/expand cost math). */
+void apply_action(Tavern* b, Action a, Town* t, Kingdom* k, World* w, int amount);
 
-/* Charges b->rent if due */
-void process_payment(World* w, Tavern* b, int current_day);
+/* Charges b->rent if due. k is b's own kingdom, for inflation_rate. */
+void process_payment(Kingdom* k, World* w, Tavern* b, int current_day);
 
-/* Simulate one day for every tavern in the world (player's and AI
-   rivals alike). Returns the player's tavern's total drinks sold. */
+/* Simulate one day for every tavern in every town in every kingdom
+   (player's and AI rivals alike). Returns the player's tavern's total
+   drinks sold. */
 int simulate_day(World* w);
-
-/* --- Tavern/Merchant pools (World owns these; taverns can be player-run
-   or AI-run competitors sharing the same population) --- */
-
-void world_taverns_init(World* w, int capacity);
-void world_taverns_free(World* w);
-/* Copies t into the pool and returns its index, or -1 if the pool is full */
-int world_add_tavern(World* w, Tavern t);
-
-void world_merchants_init(World* w, int capacity);
-void world_merchants_free(World* w);
-/* Copies m into the pool and returns its index, or -1 if the pool is full */
-int world_add_merchant(World* w, Merchant m);
-
-/* Re-point every tavern's b->supplier at w->merchants[b->supplier_id].
-   Call after loading a save, since the merchant pool is freshly malloc'd. */
-void world_relink_suppliers(World* w);
 
 #endif /* SIM_H */

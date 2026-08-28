@@ -9,7 +9,6 @@
 */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include "../include/merchant.h"
 #include "../include/sim.h"
 #include "../include/advertisement.h"
@@ -34,7 +33,7 @@ void tavern_recompute_total_inventory(Tavern* b)
         b->total_inventory += b->drinks[d].inventory.amount;
 }
 
-void apply_action(Tavern* b, Action a, World* w, int amount)
+void apply_action(Tavern* b, Action a, Town* t, Kingdom* k, World* w, int amount)
 {
     switch (a) {
         case ACT_SKINCARE:
@@ -59,12 +58,12 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
         case ACT_ADVERTISE:
             b->money -= amount;
             /* 24 because i tried balancing it. */
-            if (w->population.alive_count >= 24) {
-                b->rumor += (CLAMP(amount / (w->population.alive_count / 24), 0.0, 1.0));
+            if (t->population.alive_count >= 24) {
+                b->rumor += (CLAMP(amount / (t->population.alive_count / 24), 0.0, 1.0));
             } else {
                 b->rumor += 1.0;
             }
-            apply_advertisement(w->day, w);
+            apply_advertisement(w->day, t);
             break;
 
         case ACT_BUY_ALE: {
@@ -128,7 +127,7 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
                 break;
             }
 
-            float employee_cut = b->employees_wage * w->inflation_rate;
+            float employee_cut = b->employees_wage * k->inflation_rate;
             if (b->money >= employee_cut) {
                 b->money -= employee_cut;
                 b->employees++;
@@ -140,7 +139,7 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
         }
 
         case ACT_EXPAND_TAVERN: {
-            float expand_cost = TAVERN_EXPAND_BASE_COST * b->tavern_size * w->inflation_rate;
+            float expand_cost = TAVERN_EXPAND_BASE_COST * b->tavern_size * k->inflation_rate;
             if (b->money >= expand_cost) {
                 b->money -= expand_cost;
                 b->tavern_size++;
@@ -153,16 +152,16 @@ void apply_action(Tavern* b, Action a, World* w, int amount)
     }
 }
 
-void process_payment(World* w, Tavern* b, int current_day)
+void process_payment(Kingdom* k, World* w, Tavern* b, int current_day)
 {
     int i;
-    float employee_cut = b->employees_wage * w->inflation_rate;
+    float employee_cut = b->employees_wage * k->inflation_rate;
     float total_paid_to_employees = 0;
     char buf_e[256];
 
     PeriodicPayment* p = &b->rent;
     if (current_day >= p->next_payment_day) {
-        float actual_rent = p->base_rent * w->inflation_rate;
+        float actual_rent = p->base_rent * k->inflation_rate;
         char buf[256];
         b->money -= actual_rent;
         p->next_payment_day += p->pay_period;
@@ -183,24 +182,39 @@ void process_payment(World* w, Tavern* b, int current_day)
     }
 }
 
-/* Everything that happens once per day regardless of how many taverns
-   exist: population growth/aging, inflation, random events, and every
-   merchant's price drift. Taverns sharing a merchant must not each
-   re-roll its prices, so this updates the merchant pool directly
-   instead of going through whichever tavern happens to call it. */
+/* Everything that happens once per day regardless of how many
+   kingdoms/towns/taverns exist: population growth/aging, inflation,
+   random events, and every merchant's price drift. Taverns sharing a
+   merchant must not each re-roll its prices, so this updates the
+   merchant pool directly instead of going through whichever tavern
+   happens to call it. */
 static void world_tick(World* w)
 {
-    int new_citizens;
-    int i;
-    float inflation_growth;
+    int ki, ti;
 
-    new_citizens = (int)(frand() * 5.0f) + 1;
-    for (i = 0; i < new_citizens; i++) citizen_spawn(&w->population);
-    population_tick(w);
-    inflation_growth = inflation_tick(w);
+    for (ki = 0; ki < w->kingdom_count; ki++) {
+        Kingdom* k = &w->kingdoms[ki];
+        float inflation_growth;
+
+        for (ti = 0; ti < k->town_count; ti++) {
+            Town* t = &k->towns[ti];
+            int new_citizens = (int)(frand() * 5.0f) + 1;
+            int j;
+            for (j = 0; j < new_citizens; j++) citizen_spawn(&t->population);
+            population_tick(&t->population, &w->log);
+        }
+
+        inflation_growth = inflation_tick(k);
+
+        for (ti = 0; ti < k->town_count; ti++) {
+            Town* t = &k->towns[ti];
+            int m;
+            for (m = 0; m < t->merchant_count; m++)
+                update_merchant(&t->merchants[m], k->inflation_rate, inflation_growth);
+        }
+    }
+
     random_event(w);
-    for (i = 0; i < w->merchant_count; i++)
-        update_merchant(&w->merchants[i], w->inflation_rate, inflation_growth);
 }
 
 /* Post-market bookkeeping for one tavern: reputation/consistency
@@ -255,9 +269,9 @@ static float supplier_score(const Merchant* m, int tavern_id, float avg_ale_pric
 }
 
 /* Rarely (not every day, to avoid thrashing), compares every merchant
-   in the pool against the current supplier and switches if a clearly
-   better deal exists. */
-static void ai_tavern_reconsider_supplier(Tavern* b, World* w)
+   in b's town's pool against the current supplier and switches if a
+   clearly better deal exists. */
+static void ai_tavern_reconsider_supplier(Tavern* b, Town* t, World* w)
 {
     int i;
     float avg_ale_price;
@@ -265,18 +279,18 @@ static void ai_tavern_reconsider_supplier(Tavern* b, World* w)
     int best_id;
     float best_score;
 
-    if (frand() >= AI_SUPPLIER_RECONSIDER_CHANCE || w->merchant_count <= 1) return;
+    if (frand() >= AI_SUPPLIER_RECONSIDER_CHANCE || t->merchant_count <= 1) return;
 
     avg_ale_price = 0.0f;
-    for (i = 0; i < w->merchant_count; i++)
-        avg_ale_price += w->merchants[i].drink_price[DRINK_ALE];
-    avg_ale_price /= w->merchant_count;
+    for (i = 0; i < t->merchant_count; i++)
+        avg_ale_price += t->merchants[i].drink_price[DRINK_ALE];
+    avg_ale_price /= t->merchant_count;
 
     current_score = supplier_score(b->supplier, b->id, avg_ale_price);
     best_id = b->supplier_id;
     best_score = current_score;
-    for (i = 0; i < w->merchant_count; i++) {
-        float s = supplier_score(&w->merchants[i], b->id, avg_ale_price);
+    for (i = 0; i < t->merchant_count; i++) {
+        float s = supplier_score(&t->merchants[i], b->id, avg_ale_price);
         if (s > best_score) {
             best_score = s;
             best_id = i;
@@ -286,7 +300,7 @@ static void ai_tavern_reconsider_supplier(Tavern* b, World* w)
     if (best_id != b->supplier_id && best_score - current_score > AI_SUPPLIER_SWITCH_THRESHOLD) {
         char buf[128];
         b->supplier_id = best_id;
-        b->supplier = &w->merchants[best_id];
+        b->supplier = &t->merchants[best_id];
         snprintf(buf, sizeof(buf), "Tavern #%d switched to a new supplier.", b->id);
         log_message(&w->log, buf, LOG_INFO);
     }
@@ -295,14 +309,14 @@ static void ai_tavern_reconsider_supplier(Tavern* b, World* w)
 /* rival AI: presses a handful of the same buttons the
    player has, at random, plus a couple of heuristics apply_action
    doesn't cover (pricing and restocking) */
-static void ai_tavern_decide(Tavern* b, World* w)
+static void ai_tavern_decide(Tavern* b, Town* t, Kingdom* k, World* w)
 {
     int d;
     float target;
     int buy;
     float cost;
 
-    ai_tavern_reconsider_supplier(b, w);
+    ai_tavern_reconsider_supplier(b, t, w);
 
     /* Track supplier cost with a randomized markup instead of a fixed price */
     for (d = 0; d < DRINK_COUNT; d++) {
@@ -325,17 +339,17 @@ static void ai_tavern_decide(Tavern* b, World* w)
         }
     }
 
-    if (frand() < 0.4f) apply_action(b, ACT_CLEAN_PATHWAY, w, 0);
-    if (frand() < 0.2f) apply_action(b, ACT_SKINCARE, w, 0);
-    if (frand() < 0.2f) apply_action(b, ACT_TALK, w, 0);
-    if (frand() < 0.1f) apply_action(b, ACT_CLEAN, w, 0);
+    if (frand() < 0.4f) apply_action(b, ACT_CLEAN_PATHWAY, t, k, w, 0);
+    if (frand() < 0.2f) apply_action(b, ACT_SKINCARE, t, k, w, 0);
+    if (frand() < 0.2f) apply_action(b, ACT_TALK, t, k, w, 0);
+    if (frand() < 0.1f) apply_action(b, ACT_CLEAN, t, k, w, 0);
 }
 
 /* How the player's tavern stacked up against the busiest rival today.
    Purely informational, logged once per day. Town-wide mood (thirst,
    addiction) is shown live in the left status panel instead, see
    draw_ui() in ui.c. */
-static void log_daily_summary(World* w, DayResult* results)
+static void log_daily_summary(Town* t, World* w, DayResult* results)
 {
     char buf[160];
     int best_rival = -1;
@@ -343,15 +357,15 @@ static void log_daily_summary(World* w, DayResult* results)
     int player_customers;
     int i;
 
-    if (w->tavern_count > 1) {
-        for (i = 0; i < w->tavern_count; i++) {
-            if (i == w->player_tavern_id) continue;
+    if (t->tavern_count > 1) {
+        for (i = 0; i < t->tavern_count; i++) {
+            if (i == t->player_tavern_id) continue;
             if (results[i].customers > best_rival_customers) {
                 best_rival_customers = results[i].customers;
                 best_rival = i;
             }
         }
-        player_customers = results[w->player_tavern_id].customers;
+        player_customers = results[t->player_tavern_id].customers;
         snprintf(buf, sizeof(buf), "Competition: you drew %d customers, tavern #%d drew %d.",
                  player_customers, best_rival, best_rival_customers);
         log_message(&w->log, buf, LOG_INFO);
@@ -360,37 +374,49 @@ static void log_daily_summary(World* w, DayResult* results)
 
 int simulate_day(World* w)
 {
-    DayResult results[MAX_TAVERNS] = {0};
-    int sales_today;
-    int i;
-    int d;
-    int tavern;
+    int sales_today = 0;
+    int ki, ti;
 
     world_tick(w);
 
-    /* Every tavern settles its state (price, stock, cleanliness) before
-       the shared market pass, since citizens are choosing between
-       taverns, not visiting each one independently. */
-    for (i = 0; i < w->tavern_count; i++) {
-        if (i != w->player_tavern_id)
-            ai_tavern_decide(&w->taverns[i], w);
-        process_payment(w, &w->taverns[i], w->day);
+    for (ki = 0; ki < w->kingdom_count; ki++) {
+        Kingdom* k = &w->kingdoms[ki];
+
+        for (ti = 0; ti < k->town_count; ti++) {
+            Town* t = &k->towns[ti];
+            DayResult results[MAX_TAVERNS] = {0};
+            int is_player_town = (k->id == w->player_kingdom_id && t->id == k->player_town_id);
+            int j, d;
+
+            /* Every tavern settles its state (price, stock, cleanliness)
+               before the shared market pass, since citizens are choosing
+               between taverns, not visiting each one independently. */
+            for (j = 0; j < t->tavern_count; j++) {
+                int is_player_tavern = is_player_town && j == t->player_tavern_id;
+                if (!is_player_tavern)
+                    ai_tavern_decide(&t->taverns[j], t, k, w);
+                process_payment(k, w, &t->taverns[j], w->day);
+            }
+
+            market_simulate_all(t, w, results);
+
+            for (j = 0; j < t->tavern_count; j++)
+                tavern_post_market(&t->taverns[j], &results[j]);
+
+            /* Whether a fight/vomit/steal event fires today is driven by
+               who actually showed up at each tavern. The player's tavern
+               surfaces an interactive prompt; rival taverns resolve
+               automatically. */
+            for (j = 0; j < t->tavern_count; j++)
+                evaluate_customer_events(k, t, w, j, &results[j]);
+
+            if (is_player_town) {
+                log_daily_summary(t, w, results);
+                for (d = 0; d < DRINK_COUNT; d++)
+                    sales_today += results[t->player_tavern_id].sales[d];
+            }
+        }
     }
-
-    market_simulate_all(w, results);
-
-    for (i = 0; i < w->tavern_count; i++)
-        tavern_post_market(&w->taverns[i], &results[i]);
-
-    /* Whether a fight/vomit/steal event fires today is driven by who
-       actually showed up at each tavern. The player's tavern surfaces
-       an interactive prompt; rival taverns resolve automatically. */
-    for (tavern = 0; tavern < w->tavern_count; tavern++)
-        evaluate_customer_events(w, tavern, &results[tavern]);
-    log_daily_summary(w, results);
-
-    sales_today = 0;
-    for (d = 0; d < DRINK_COUNT; d++) sales_today += results[w->player_tavern_id].sales[d];
 
     /*
      *    THIS... is important.
@@ -401,64 +427,4 @@ int simulate_day(World* w)
     w->day++;
 
     return sales_today;
-}
-
-void world_taverns_init(World* w, int capacity)
-{
-    free(w->taverns); /* idempotent: safe to call again to reset the pool */
-    w->tavern_capacity = capacity;
-    w->tavern_count = 0;
-    w->taverns = malloc(capacity * sizeof(Tavern));
-}
-
-void world_taverns_free(World* w)
-{
-    free(w->taverns);
-    w->taverns = NULL;
-    w->tavern_count = 0;
-    w->tavern_capacity = 0;
-}
-
-int world_add_tavern(World* w, Tavern t)
-{
-    if (w->tavern_count >= w->tavern_capacity) return -1;
-    t.id = w->tavern_count;
-    w->taverns[w->tavern_count] = t;
-    return w->tavern_count++;
-}
-
-void world_merchants_init(World* w, int capacity)
-{
-    free(w->merchants); /* idempotent: safe to call again to reset the pool */
-    w->merchant_capacity = capacity;
-    w->merchant_count = 0;
-    w->merchants = malloc(capacity * sizeof(Merchant));
-}
-
-void world_merchants_free(World* w)
-{
-    free(w->merchants);
-    w->merchants = NULL;
-    w->merchant_count = 0;
-    w->merchant_capacity = 0;
-}
-
-int world_add_merchant(World* w, Merchant m)
-{
-    if (w->merchant_count >= w->merchant_capacity) return -1;
-    w->merchants[w->merchant_count] = m;
-    return w->merchant_count++;
-}
-
-void world_relink_suppliers(World* w)
-{
-    int i;
-    Tavern* t;
-
-    for (i = 0; i < w->tavern_count; i++) {
-        t = &w->taverns[i];
-        t->supplier = (t->supplier_id >= 0 && t->supplier_id < w->merchant_count)
-            ? &w->merchants[t->supplier_id]
-            : NULL;
-    }
 }

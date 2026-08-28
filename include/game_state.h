@@ -12,10 +12,11 @@
 #define GAME_STATE_H
 
 #include "log.h"
-#include "population.h"
 
-#define MAX_TAVERNS 8
-#define MAX_MERCHANTS 8
+#define MAX_TAVERNS 8   /* per-town tavern pool capacity */
+#define MAX_MERCHANTS 8 /* per-town merchant pool capacity */
+#define MAX_TOWNS 4     /* per-kingdom town pool capacity */
+#define MAX_KINGDOMS 4  /* world kingdom pool capacity */
 
 typedef enum {
     EVENT_NONE,
@@ -30,29 +31,19 @@ typedef enum {
 
 typedef struct World {
     int day;                 /* This is absolute day since game started */
-    Population population;   /* This is the population of the 'town' our tavern is in */
-    int last_advertised_day; /* Gonna use this for when you haven't advertised for
-                                some time, they stop coming... */
     MessageLog log;          /* Logs of events happening */
-    float inflation_rate;    /* Cumulative price multiplier since day 0, starts at 1.0 */
-    float money_supply_prev; /* Total tavern money + citizen wealth, as of yesterday's tick */
     PendingEventType pending_event;
-    int at_war;              /* 1 if currently at war */
-    int our_kingdom_attack;  /* 1 if our kingdom is the attacker, 0 if defender */
-    int war_end_day;         /* day the war ends */
 
-    /* Pools of every tavern/merchant that exists, player-owned or not.
-       Types are forward-declared (not #include "sim.h"/"merchant.h") to
-       avoid a circular include, since sim.h includes this header for World. */
-    struct Tavern* taverns;
-    int tavern_count;
-    int tavern_capacity;
+    /* Pool of every kingdom that exists. Type is forward-declared (not
+       #include "kingdom.h") to avoid a circular include, since kingdom.h
+       includes this header for World. Each Kingdom owns its own pool of
+       Towns, which each own their own population + tavern/merchant pools -
+       see kingdom.h/town.h. */
+    struct Kingdom* kingdoms;
+    int kingdom_count;
+    int kingdom_capacity;
 
-    struct Merchant* merchants;
-    int merchant_count;
-    int merchant_capacity;
-
-    int player_tavern_id; /* index into taverns[] the player currently controls */
+    int player_kingdom_id; /* index into kingdoms[] the player currently occupies */
 } World;
 
 #endif

@@ -34,6 +34,8 @@ REL_SAN   :=
 SRC := \
 	main.c \
 	src/sim.c \
+	src/town.c \
+	src/kingdom.c \
 	src/sim_random.c \
 	src/market.c \
 	src/reputation.c \
@@ -46,7 +48,8 @@ SRC := \
 	src/save.c \
 	src/inflation.c \
 	src/event.c \
-	src/collect_game.c
+	src/collect_game.c \
+	src/animals.c
 
 OBJ := $(SRC:.c=.o)
 

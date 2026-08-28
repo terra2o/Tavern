@@ -90,21 +90,21 @@ void ui_state_init(UiState* state);
 void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset);
 
 /* Draw the entire UI screen with status, actions, stats, and input dialogs */
-void draw_ui(Tavern* b, int day, int action_num, int actions_per_day, 
-             World *w, UiState* ui_state, WarState* war);
+void draw_ui(Tavern* b, int day, int action_num, int actions_per_day,
+             Town* t, Kingdom* k, World *w, UiState* ui_state, WarState* war);
 
 /* The game where you collect fruits to make wines */
 void draw_collecting_game(Tavern* b, UiState* ui_state);
 
 /* Update UI state based on a single character of input (non-blocking) */
-void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w);
+void ui_handle_input(int ch, UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World* w);
 
 /* Start number input mode. Set is_float=1 to allow decimal input. */
 void ui_start_number_input(UiState* ui_state, const char* prompt,
                            float min_val, float max_val, int is_float);
 
 /* Process a confirmed action with its parameter */
-void ui_process_action(UiState* ui_state, Tavern* b, World* w);
+void ui_process_action(UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World* w);
 
 /* Read an action key press (1-9 or Q). Only called in NORMAL mode. */
 Action read_action(int ch);

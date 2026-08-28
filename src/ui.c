@@ -178,7 +178,7 @@ void draw_centered_box(int box_w,
     string_array_clear();
 }
 
-void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, UiState* ui_state, WarState* war)
+void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, Kingdom *k, World *w, UiState* ui_state, WarState* war)
 {
     int max_x, max_y;
     getmaxyx(stdscr, max_y, max_x);
@@ -223,25 +223,25 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(left_panel_y, left_col2_x, "Consistency: %.2f", b->consistency);
 
     mvprintw(++left_panel_y, 2, "Handsomeness: %.2f", b->handsomeness);
-    mvprintw(left_panel_y, left_col2_x, "Population: %d", w->population.alive_count);
+    mvprintw(left_panel_y, left_col2_x, "Population: %d", t->population.alive_count);
 
     mvprintw(++left_panel_y, 2, "Pathway dirt: %d/7", (w->day - b->last_pathway_clean_day));
 
-    float inf_pct = (w->inflation_rate - 1.0f) * 100.0f;
+    float inf_pct = (k->inflation_rate - 1.0f) * 100.0f;
     int inf_color = (inf_pct >= 25.0f) ? COLOR_WARNING : (inf_pct >= 10.0f) ? COLOR_YELLOW : COLOR_NORMAL;
     attron(COLOR_PAIR(inf_color));
     mvprintw(left_panel_y, left_col2_x, "Inflation: +%.1f%%", inf_pct);
     attroff(COLOR_PAIR(inf_color));
 
     float avg_thirst, avg_addiction, avg_anger;
-    population_stats(&w->population, &avg_thirst, &avg_addiction, &avg_anger);
+    population_stats(&t->population, &avg_thirst, &avg_addiction, &avg_anger);
     mvprintw(++left_panel_y, 2, "Town thirst: %.0f%%", avg_thirst * 100.0f);
     mvprintw(left_panel_y, left_col2_x, "Town addiction: %.0f%%", avg_addiction * 100.0f);
     mvprintw(++left_panel_y, 2, "Town anger: %.0f%%", avg_anger * 100.0f);
 
-    if (w->at_war) {
+    if (k->at_war) {
         attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
-        if (w->our_kingdom_attack)
+        if (k->our_kingdom_attack)
             mvprintw(++left_panel_y, 2, "** AT WAR (your kingdom is attacking) **");
         else
             mvprintw(++left_panel_y, 2, "** AT WAR (your kingdom is defending) **");
@@ -276,9 +276,9 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
     mvprintw(8, right_start + 2, "9 - Collect fruits");
     mvprintw(8, right_col2_x, "M - Make wines with fruits");
 
-    mvprintw(9, right_start + 2, "P - Hire employee ($%.2f)", b->employees_wage * w->inflation_rate);
+    mvprintw(9, right_start + 2, "P - Hire employee ($%.2f)", b->employees_wage * k->inflation_rate);
     mvprintw(9, right_col2_x, "X - Expand tavern ($%.2f)",
-             TAVERN_EXPAND_BASE_COST * b->tavern_size * w->inflation_rate);
+             TAVERN_EXPAND_BASE_COST * b->tavern_size * k->inflation_rate);
 
     mvprintw(10, right_start + 2, "D - Overview");
 
@@ -394,8 +394,8 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
         string_array_count = 0;
         PUSH_STR(string_array, string_array_count, "UP/DOWN to pick, ENTER to switch, ESC to cancel.");
         PUSH_STR(string_array, string_array_count, "");
-        for (int i = 0; i < w->merchant_count; i++) {
-            const Merchant* m = &w->merchants[i];
+        for (int i = 0; i < t->merchant_count; i++) {
+            const Merchant* m = &t->merchants[i];
             char line[160];
             char marker = (i == ui_state->supplier.selected) ? '>' : ' ';
             char current = (i == b->supplier_id) ? '*' : ' ';
@@ -410,7 +410,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, World *w, 
                 snprintf(line + off, sizeof(line) - off, "  favor %.2f", m->tavern_favor[b->id]);
             PUSH_STR(string_array, string_array_count, line);
         }
-        draw_centered_box(max_x - 2, 8 + w->merchant_count, max_x, max_y, "SUPPLIERS  (* = current)");
+        draw_centered_box(max_x - 2, 8 + t->merchant_count, max_x, max_y, "SUPPLIERS  (* = current)");
     }
 
     /* --- WINE VARIETY PROMPT --- */
@@ -629,10 +629,10 @@ static void ui_handle_vomit(int ch, UiState* ui_state, Tavern* b, World* w)
     }
 }
 
-static void ui_handle_war(int ch, UiState* ui_state, Tavern* b, World* w)
+static void ui_handle_war(int ch, UiState* ui_state, Tavern* b, Kingdom* k, World* w)
 {
     if (ch < '1' || ch > '3') return;
-    handle_war_declaration(ch - '0', b, w);
+    handle_war_declaration(ch - '0', b, k, w);
     ui_state->war.resolved = 1;
 }
 
@@ -643,10 +643,10 @@ static void ui_handle_war_soldiers(int ch, UiState* ui_state, Tavern* b, World* 
     ui_state->war_soldiers.resolved = 1;
 }
 
-static void ui_handle_war_refugees(int ch, UiState* ui_state, Tavern* b, World* w)
+static void ui_handle_war_refugees(int ch, UiState* ui_state, Tavern* b, Town* t, World* w)
 {
     if (ch < '1' || ch > '3') return;
-    handle_war_refugees(ch - '0', b, w);
+    handle_war_refugees(ch - '0', b, t, w);
     ui_state->war_refugees.resolved = 1;
 }
 
@@ -674,7 +674,7 @@ static void ui_handle_steal(int ch, UiState* ui_state, Tavern* b, World* w)
         break;
     }
 }
-static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, World* w)
+static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, Town* t, World* w)
 {
     SupplierState* s = &ui_state->supplier;
 
@@ -685,13 +685,13 @@ static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, World* w)
         if (s->selected > 0) s->selected--;
     }
     else if (ch == KEY_DOWN) {
-        if (s->selected < w->merchant_count - 1) s->selected++;
+        if (s->selected < t->merchant_count - 1) s->selected++;
     }
     else if (ch == '\n' || ch == '\r') {
-        if (s->selected != b->supplier_id && s->selected >= 0 && s->selected < w->merchant_count) {
+        if (s->selected != b->supplier_id && s->selected >= 0 && s->selected < t->merchant_count) {
             char buf[128];
             b->supplier_id = s->selected;
-            b->supplier = &w->merchants[s->selected];
+            b->supplier = &t->merchants[s->selected];
             snprintf(buf, sizeof(buf), "Switched suppliers to merchant #%d.", s->selected);
             log_message(&w->log, buf, LOG_INFO);
         }
@@ -743,7 +743,7 @@ static void ui_handle_detail(int ch, UiState* ui_state)
 }
 
 /* Updates UI state based on input, handling mode-specific logic. */
-void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
+void ui_handle_input(int ch, UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World* w)
 {
     int max_x, max_y;
     getmaxyx(stdscr, max_y, max_x);
@@ -763,15 +763,15 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, World* w)
     } else if (ui_state->mode == UI_MODE_STEAL) {
         ui_handle_steal(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_WAR) {
-        ui_handle_war(ch, ui_state, b, w);
+        ui_handle_war(ch, ui_state, b, k, w);
     } else if (ui_state->mode == UI_MODE_WAR_SOLDIERS) {
         ui_handle_war_soldiers(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_WAR_REFUGEES) {
-        ui_handle_war_refugees(ch, ui_state, b, w);
+        ui_handle_war_refugees(ch, ui_state, b, t, w);
     } else if (ui_state->mode == UI_MODE_WAR_ATTACK) {
         ui_handle_war_attack(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_SUPPLIER) {
-        ui_handle_supplier(ch, ui_state, b, w);
+        ui_handle_supplier(ch, ui_state, b, t, w);
     } else if (ui_state->mode == UI_MODE_WINE_VARIETY) {
         ui_handle_wine_variety(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_DETAIL) {
@@ -853,7 +853,7 @@ Action read_action(int ch)
 }
 
 /* Process a confirmed action with its parameter */
-void ui_process_action(UiState* ui_state, Tavern* b, World* w)
+void ui_process_action(UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World* w)
 {
     if (ui_state->number_input.is_confirmed == 0)
         return;
@@ -884,7 +884,7 @@ void ui_process_action(UiState* ui_state, Tavern* b, World* w)
             }
             case ACT_ADVERTISE:
             {
-                apply_action(b, ACT_ADVERTISE, w, input_value);
+                apply_action(b, ACT_ADVERTISE, t, k, w, input_value);
                 char buf[128];
                 snprintf(buf, sizeof(buf), "Advertised with budget $%d", input_value);
                 log_message(&w->log, buf, LOG_INFO);

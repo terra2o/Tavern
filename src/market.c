@@ -67,15 +67,15 @@ static int citizen_wants_to_go_out(Citizen* c, int current_day)
 /* Picks the best affordable (tavern, drink) combo for c, skipping any
    tavern whose dirty pathway turns this particular citizen away.
    Returns 1 and fills out_tavern/out_drink on success. */
-static int citizen_pick_tavern(Citizen* c, World* w, int current_day,
+static int citizen_pick_tavern(Citizen* c, Town* town, int current_day,
                                 int* out_tavern, int* out_drink, int* pathway_losses)
 {
     int best_tavern = -1;
     int best_drink = DRINK_ALE;
     float best_score = -1.0f;
 
-    for (int t = 0; t < w->tavern_count; t++) {
-        Tavern* b = &w->taverns[t];
+    for (int t = 0; t < town->tavern_count; t++) {
+        Tavern* b = &town->taverns[t];
 
         float pathway_loss = people_fall_because_pathway_dirty(b, current_day);
         if (pathway_loss > 0.0f && frand() < pathway_loss) {
@@ -106,9 +106,9 @@ static int citizen_pick_tavern(Citizen* c, World* w, int current_day,
     return 1;
 }
 
-static void citizen_visit(Citizen* c, World* w, int tavern_idx, int drink, int current_day, DayResult* r)
+static void citizen_visit(Citizen* c, Town* town, int tavern_idx, int drink, int current_day, DayResult* r)
 {
-    Tavern* b = &w->taverns[tavern_idx];
+    Tavern* b = &town->taverns[tavern_idx];
 
     b->drinks[drink].inventory.amount--;
     b->money += b->drinks[drink].price;
@@ -133,9 +133,9 @@ static void citizen_visit(Citizen* c, World* w, int tavern_idx, int drink, int c
     if (c->homeless || c->wealth < DESTITUTE_WEALTH_THRESHOLD) r->destitute_visitors++;
 }
 
-void market_simulate_all(World* w, DayResult* results)
+void market_simulate_all(Town* town, World* w, DayResult* results)
 {
-    for (int t = 0; t < w->tavern_count; t++) {
+    for (int t = 0; t < town->tavern_count; t++) {
         results[t].customers = 0;
         results[t].revenue = 0.0f;
         results[t].rowdy_visitors = 0;
@@ -146,13 +146,13 @@ void market_simulate_all(World* w, DayResult* results)
         }
     }
 
-    float ads_loss_fraction = no_customers_because_no_ads(w->day, w);
+    float ads_loss_fraction = no_customers_because_no_ads(w->day, town);
 
     int lost_to_ads = 0;
     int lost_to_pathway[MAX_TAVERNS] = {0};
 
-    for (int i = 0; i < w->population.count; i++) {
-        Citizen* c = &w->population.citizens[i];
+    for (int i = 0; i < town->population.count; i++) {
+        Citizen* c = &town->population.citizens[i];
         if (!c->alive) continue;
 
         if (!citizen_wants_to_go_out(c, w->day)) continue;
@@ -164,12 +164,12 @@ void market_simulate_all(World* w, DayResult* results)
         }
 
         int tavern_idx, drink;
-        if (!citizen_pick_tavern(c, w, w->day, &tavern_idx, &drink, lost_to_pathway))
+        if (!citizen_pick_tavern(c, town, w->day, &tavern_idx, &drink, lost_to_pathway))
             continue;
 
         results[tavern_idx].customers++;
         results[tavern_idx].demand[drink]++;
-        citizen_visit(c, w, tavern_idx, drink, w->day, &results[tavern_idx]);
+        citizen_visit(c, town, tavern_idx, drink, w->day, &results[tavern_idx]);
     }
 
     if (lost_to_ads > 0) {
@@ -177,7 +177,7 @@ void market_simulate_all(World* w, DayResult* results)
         snprintf(buf, sizeof(buf), "%d townsfolk stayed home - nobody's advertised in a while", lost_to_ads);
         log_message(&w->log, buf, LOG_WARN);
     }
-    for (int t = 0; t < w->tavern_count; t++) {
+    for (int t = 0; t < town->tavern_count; t++) {
         if (lost_to_pathway[t] > 0) {
             char buf[128];
             snprintf(buf, sizeof(buf), "%d customers turned back at tavern #%d - the pathway is too dirty", lost_to_pathway[t], t);

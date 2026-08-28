@@ -11,8 +11,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "../include/sim_random.h"
-#include "../include/game_state.h"
-#include "../include/sim.h"
+#include "../include/population.h"
+#include "../include/log.h"
+#include "../include/sim.h" /* for the CLAMP macro */
 
 void population_init(Population* pop, int capacity)
 {
@@ -110,9 +111,8 @@ void citizen_spawn(Population* pop)
 /* Anger drifts back down on its own each day unless something stokes it */
 #define ANGER_DECAY_PER_DAY 0.015f
 
-void population_tick(struct World* w)
+void population_tick(Population* pop, MessageLog* log)
 {
-    Population* pop = &w->population;
     int deaths_health = 0;
     int deaths_age = 0;
 
@@ -155,12 +155,12 @@ void population_tick(struct World* w)
     if (deaths_health > 0) {
         char buf[128];
         snprintf(buf, sizeof(buf), "%d townsfolk drank themselves to death", deaths_health);
-        log_message(&w->log, buf, LOG_WARN);
+        log_message(log, buf, LOG_WARN);
     }
     if (deaths_age > 0) {
         char buf[128];
         snprintf(buf, sizeof(buf), "%d elderly townsfolk passed away", deaths_age);
-        log_message(&w->log, buf, LOG_INFO);
+        log_message(log, buf, LOG_INFO);
     }
 }
 

@@ -11,9 +11,9 @@
 #ifndef INFLATION_H
 #define INFLATION_H
 
-#include "game_state.h"
+#include "kingdom.h"
 
-/* Returns the multiplier applied to w->inflation_rate today (post-clamp). */
-float inflation_tick(World* w);
+/* Returns the multiplier applied to k->inflation_rate today (post-clamp). */
+float inflation_tick(Kingdom* k);
 
 #endif

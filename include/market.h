@@ -13,11 +13,11 @@
 
 #include "sim.h"
 
-/* Simulates one day of foot traffic across every tavern in w->taverns at
-   once: each citizen decides whether to go out, and if so, picks one
-   tavern and one drink to buy there (or none, if nothing fits their
-   budget/taste). results must have room for at least w->tavern_count
-   entries; results[i] corresponds to w->taverns[i]. */
-void market_simulate_all(World* w, DayResult* results);
+/* Simulates one day of foot traffic across every tavern in t->taverns at
+   once: each citizen in t->population decides whether to go out, and if
+   so, picks one tavern and one drink to buy there (or none, if nothing
+   fits their budget/taste). results must have room for at least
+   t->tavern_count entries; results[i] corresponds to t->taverns[i]. */
+void market_simulate_all(Town* t, World* w, DayResult* results);
 
 #endif
