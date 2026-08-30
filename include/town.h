@@ -11,6 +11,7 @@
 #ifndef TOWN_H
 #define TOWN_H
 
+#include "animals.h"
 #include "population.h"
 
 typedef struct Town {
@@ -30,6 +31,7 @@ typedef struct Town {
     int merchant_capacity;
 
     int last_advertised_day;
+    Animals cats;
 } Town;
 
 void town_taverns_init(Town* t, int capacity);
@@ -41,6 +43,9 @@ void town_merchants_init(Town* t, int capacity);
 void town_merchants_free(Town* t);
 /* Copies m into the pool and returns its index, or -1 if the pool is full */
 int town_add_merchant(Town* t, struct Merchant m);
+
+void town_cats_init(Town* t, int capacity);
+void town_cats_free(Town* t);
 
 /* Re-point every tavern's supplier pointer at t->merchants[supplier_id].
    Call after loading a save, since the merchant pool is freshly malloc'd. */

@@ -30,6 +30,11 @@ typedef struct {
     int resolved;
 } StealState;
 
+/* Cat trouble event state */
+typedef struct {
+    int resolved;
+} CatTroubleState;
+
 typedef struct {
     int our_kingdom_attack;
     int resolved;
@@ -58,6 +63,7 @@ typedef struct {
     FightState fight_state;
     VomitState vomit_state;
     StealState steal_state;
+    CatTroubleState cat_trouble_state;
     WarState war_state;
     WarSoldiersState war_soldiers_state;
     WarRefugeesState war_refugees_state;
@@ -67,6 +73,7 @@ typedef struct {
 void event_fight(World* w);
 void event_vomit(World* w);
 void event_steal(World* w);
+void event_cat_trouble(World* w);
 void event_war(Kingdom* k, World* w);
 
 /* Chance to start a new war. Rolled independently per kingdom, unrelated

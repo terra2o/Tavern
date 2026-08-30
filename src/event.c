@@ -40,6 +40,11 @@ void event_steal(World* w)
     w->pending_event = EVENT_STEAL;
 }
 
+void event_cat_trouble(World* w)
+{
+    w->pending_event = EVENT_CAT_TROUBLE;
+}
+
 void event_war(Kingdom* k, World* w)
 {
     w->pending_event = EVENT_WAR;

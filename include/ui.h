@@ -23,6 +23,7 @@ typedef enum {
     UI_MODE_FIGHT,
     UI_MODE_VOMIT,
     UI_MODE_STEAL,
+    UI_MODE_CAT_TROUBLE,
     UI_MODE_WAR,
     UI_MODE_WAR_SOLDIERS,
     UI_MODE_WAR_REFUGEES,
@@ -70,6 +71,7 @@ typedef struct {
     FightState fight;
     VomitState vomit;
     StealState steal;
+    CatTroubleState cat_trouble;
     WarState war;
     WarSoldiersState war_soldiers;
     WarRefugeesState war_refugees;

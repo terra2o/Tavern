@@ -74,6 +74,7 @@ void ui_state_init(UiState* state)
     state->fight.resolved = 0;
     state->vomit.resolved = 0;
     state->steal.resolved = 0;
+    state->cat_trouble.resolved = 0;
     state->supplier.selected = 0;
     memset(&state->collect, 0, sizeof(state->collect));
     state->pending_wine = WINE_APPLE;
@@ -233,6 +234,13 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, K
     mvprintw(left_panel_y, left_col2_x, "Inflation: +%.1f%%", inf_pct);
     attroff(COLOR_PAIR(inf_color));
 
+    int cat_alive, cat_drunk;
+    animals_stats(&t->cats, &cat_alive, &cat_drunk);
+    int days_since_bowl = w->day - b->last_water_bowl_day;
+    mvprintw(++left_panel_y, 2, "Water bowl: %s",
+             (b->is_water_bowl_outside && days_since_bowl < 3) ? "fresh" : "dry/none");
+    mvprintw(left_panel_y, left_col2_x, "Cats: %d (%d drunk)", cat_alive, cat_drunk);
+
     float avg_thirst, avg_addiction, avg_anger;
     population_stats(&t->population, &avg_thirst, &avg_addiction, &avg_anger);
     mvprintw(++left_panel_y, 2, "Town thirst: %.0f%%", avg_thirst * 100.0f);
@@ -281,6 +289,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, K
              TAVERN_EXPAND_BASE_COST * b->tavern_size * k->inflation_rate);
 
     mvprintw(10, right_start + 2, "D - Overview");
+    mvprintw(10, right_col2_x, "B - Place water bowl outside");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
@@ -343,6 +352,18 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, K
         PUSH_STR(string_array, string_array_count, "3 - Ignore it             ($200)");
 
         draw_centered_box(52, 11, max_x, max_y, "!! SOMEONE IS TRYING TO STEAL SOME BOOZE !!");
+    }
+    /* --- CAT TROUBLE EVENT OVERLAY --- */
+    if (ui_state->mode == UI_MODE_CAT_TROUBLE) {
+        string_array_count = 0;
+        PUSH_STR(string_array, string_array_count, "A drunk cat snuck in and is knocking mugs off the tables.");
+        PUSH_STR(string_array, string_array_count, "What do you do?");
+        PUSH_STR(string_array, string_array_count, "");
+        PUSH_STR(string_array, string_array_count, "1 - Scoop it up and toss it outside (rep -0.05)");
+        PUSH_STR(string_array, string_array_count, "2 - Pay someone to deal with it     ($30, rep +0.05)");
+        PUSH_STR(string_array, string_array_count, "3 - Ignore it                       (rep -0.20, risky)");
+
+        draw_centered_box(56, 11, max_x, max_y, "!! A DRUNK CAT IS LOOSE !!");
     }
     /* --- WAR SOLDIERS EVENT OVERLAY --- */
     if (ui_state->mode == UI_MODE_WAR_SOLDIERS) {
@@ -674,6 +695,31 @@ static void ui_handle_steal(int ch, UiState* ui_state, Tavern* b, World* w)
         break;
     }
 }
+static void ui_handle_cat_trouble(int ch, UiState* ui_state, Tavern* b, World* w)
+{
+    switch (ch) {
+    case '1':
+        b->reputation -= 0.05f;
+        b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+        log_message(&w->log, "You scooped up the cat and tossed it outside.", LOG_INFO);
+        ui_state->cat_trouble.resolved = 1;
+        break;
+    case '2':
+        b->money -= 30.0f;
+        b->reputation += 0.05f;
+        b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+        log_message(&w->log, "You paid someone to shoo the cat out and mop up.", LOG_INFO);
+        ui_state->cat_trouble.resolved = 1;
+        break;
+    case '3':
+        b->reputation -= 0.20f;
+        b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+        log_message(&w->log, "You ignored the drunk cat. Patrons are not amused.", LOG_WARN);
+        ui_state->cat_trouble.resolved = 1;
+        break;
+    }
+}
+
 static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, Town* t, World* w)
 {
     SupplierState* s = &ui_state->supplier;
@@ -762,6 +808,8 @@ void ui_handle_input(int ch, UiState* ui_state, Tavern* b, Town* t, Kingdom* k, 
         ui_handle_vomit(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_STEAL) {
         ui_handle_steal(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_CAT_TROUBLE) {
+        ui_handle_cat_trouble(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_WAR) {
         ui_handle_war(ch, ui_state, b, k, w);
     } else if (ui_state->mode == UI_MODE_WAR_SOLDIERS) {
@@ -836,6 +884,8 @@ static const struct { int key; Action action; } ACTION_KEYS[] = {
     { 'p', ACT_HIRE_EMPLOYEES },
     { 'X', ACT_EXPAND_TAVERN },
     { 'x', ACT_EXPAND_TAVERN },
+    { 'B', ACT_WATER_BOWL_OUTSIDE },
+    { 'b', ACT_WATER_BOWL_OUTSIDE },
 };
 
 /* Convert a character to an action (only valid in NORMAL mode) */

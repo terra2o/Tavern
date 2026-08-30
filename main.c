@@ -239,7 +239,6 @@ static Tavern make_starter_tavern(int day, int merchant_id, const Merchant* m)
     b.employees = 0;
     b.employees_wage = 500.0f;
     b.tavern_size = 1;
-    animals_init(&b.cats, ANIMALS_DEFAULT_CAPACITY);
     return b;
 }
 
@@ -258,6 +257,11 @@ static void init_new_game(World* w)
     town.last_advertised_day = 0;
     town_merchants_init(&town, MAX_MERCHANTS);
     town_taverns_init(&town, MAX_TAVERNS);
+    town_cats_init(&town, ANIMALS_DEFAULT_CAPACITY);
+    /* Seed a small starting colony - cats_tick() only makes kittens from
+       existing mature pairs, so the town needs a handful to start with
+       or it would never have any cats at all. */
+    for (int i = 0; i < 4; i++) cat_spawn(&town.cats);
     population_init(&town.population, 100000);
     for (int i = 0; i < 150; i++) citizen_spawn(&town.population);
 
@@ -456,6 +460,8 @@ int main(void)
             event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_VOMIT, &ui_state.vomit.resolved);
         else if (w.pending_event == EVENT_STEAL)
             event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_STEAL, &ui_state.steal.resolved);
+        else if (w.pending_event == EVENT_CAT_TROUBLE)
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_CAT_TROUBLE, &ui_state.cat_trouble.resolved);
         else if (w.pending_event == EVENT_WAR) {
             ui_state.war.our_kingdom_attack = k->our_kingdom_attack;
             event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR, &ui_state.war.resolved);

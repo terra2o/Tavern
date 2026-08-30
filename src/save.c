@@ -89,35 +89,30 @@ static int read_tavern(char* line, Town* t)
                &b.rent.rent_amount, &b.rent.base_rent, &b.employees,
                &b.employees_wage, &b.rent.next_wage_day, &b.tavern_size) != 15) return 0;
 
-    animals_init(&b.cats, ANIMALS_DEFAULT_CAPACITY);
     town_add_tavern(t, b);
     return 1;
 }
 
-static void write_cat(FILE* f, int tavern_index, const Cat* c)
+static void write_cat(FILE* f, const Cat* c)
 {
-    fprintf(f, "cat=%d,%d,%f,%f,%d,%f,%d,%d\n",
-            tavern_index, c->age, c->thirst, c->curiosity, c->drunk,
+    fprintf(f, "cat=%d,%f,%f,%d,%f,%d,%d\n",
+            c->age, c->thirst, c->curiosity, c->drunk,
             c->health, c->alive, c->male);
 }
 
-/* Appends straight onto the owning tavern's Animals.cats[], the same way
-   read_tavern appends whole taverns via town_add_tavern. Needs t's
-   [taverns] to already be fully read, since it looks tavern_index up in
-   t->taverns[]. */
+/* Appends straight onto the town's Animals.cats[], the same way
+   read_tavern appends whole taverns via town_add_tavern. */
 static int read_cat(char* line, Town* t)
 {
     if (strncmp(line, "cat=", 4) != 0) return 0;
     char* cursor = line + 4;
 
-    int tavern_index;
     Cat c;
-    if (sscanf(cursor, "%d,%d,%f,%f,%d,%f,%d,%d",
-               &tavern_index, &c.age, &c.thirst, &c.curiosity, &c.drunk,
-               &c.health, &c.alive, &c.male) != 8) return 0;
+    if (sscanf(cursor, "%d,%f,%f,%d,%f,%d,%d",
+               &c.age, &c.thirst, &c.curiosity, &c.drunk,
+               &c.health, &c.alive, &c.male) != 7) return 0;
 
-    if (tavern_index < 0 || tavern_index >= t->tavern_count) return 0;
-    Animals* cats = &t->taverns[tavern_index].cats;
+    Animals* cats = &t->cats;
     if (cats->count >= cats->capacity) return 0;
 
     cats->cats[cats->count++] = c;
@@ -212,11 +207,8 @@ static void write_town(FILE* f, const Town* t)
     fprintf(f, "\n");
 
     fprintf(f, "[cats]\n");
-    for (int i = 0; i < t->tavern_count; i++) {
-        const Animals* cats = &t->taverns[i].cats;
-        for (int j = 0; j < cats->count; j++)
-            write_cat(f, i, &cats->cats[j]);
-    }
+    for (int j = 0; j < t->cats.count; j++)
+        write_cat(f, &t->cats.cats[j]);
     fprintf(f, "\n");
 }
 
@@ -302,6 +294,7 @@ int load_game(const char* path, World* w)
                     current_town = &current_kingdom->towns[idx];
                     town_taverns_init(current_town, MAX_TAVERNS);
                     town_merchants_init(current_town, MAX_MERCHANTS);
+                    town_cats_init(current_town, ANIMALS_DEFAULT_CAPACITY);
                 }
             }
             continue;
@@ -429,8 +422,7 @@ int load_game(const char* path, World* w)
             }
 
             population_recount_alive(&t->population);
-            for (int i = 0; i < t->tavern_count; i++)
-                animals_recount_alive(&t->taverns[i].cats);
+            animals_recount_alive(&t->cats);
             town_relink_suppliers(t);
 
             /* Defensive clamping */

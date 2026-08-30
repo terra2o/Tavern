@@ -149,6 +149,10 @@ void apply_action(Tavern* b, Action a, Town* t, Kingdom* k, World* w, int amount
             }
             break;
         }
+        case ACT_WATER_BOWL_OUTSIDE: {
+            b->is_water_bowl_outside = 1;       
+            b->last_water_bowl_day = w->day;
+        }
     }
 }
 
@@ -343,6 +347,97 @@ static void ai_tavern_decide(Tavern* b, Town* t, Kingdom* k, World* w)
     if (frand() < 0.2f) apply_action(b, ACT_SKINCARE, t, k, w, 0);
     if (frand() < 0.2f) apply_action(b, ACT_TALK, t, k, w, 0);
     if (frand() < 0.1f) apply_action(b, ACT_CLEAN, t, k, w, 0);
+    if (frand() < 0.3f) apply_action(b, ACT_WATER_BOWL_OUTSIDE, t, k, w, 0);
+}
+
+/* A bowl left outside dries up after a few days, same idea as
+   PATHWAY_DIRTY_THRESHOLD_DAYS in pathway.c. */
+#define WATER_BOWL_DRY_THRESHOLD_DAYS 3
+#define CAT_THIRST_SEEK_THRESHOLD 0.6f  /* won't bother going out looking until this thirsty */
+#define CAT_THIRST_RESET_ON_DRINK 0.8f
+#define CAT_DRUNK_CHANCE 1.0f          /* chance a cat that just drank booze gets drunk */
+
+static int tavern_water_bowl_filled(const Tavern* b, int current_day)
+{
+    return b->is_water_bowl_outside &&
+           (current_day - b->last_water_bowl_day) < WATER_BOWL_DRY_THRESHOLD_DAYS;
+}
+
+/* AI taverns have no interactive UI, so a drunk cat causing a scene there
+   is resolved on the spot instead of going through World.pending_event
+   (which only the player's tavern can present). Same shape as
+   ai_handle_fight/ai_handle_vomit in event.c. */
+static void ai_handle_cat_trouble(Tavern* b, World* w, int tavern_id)
+{
+    char buf[128];
+
+    if (rand() % 2 == 0) {
+        b->handsomeness -= 0.05f;
+        b->rumor -= 0.10f;
+    } else {
+        b->money -= 30.0f; /* pays someone to shoo it out and mop up */
+    }
+    b->handsomeness = CLAMP(b->handsomeness, 0.0f, 1.0f);
+    b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
+
+    snprintf(buf, sizeof(buf), "A drunk cat caused a scene at tavern #%d.", tavern_id);
+    log_message(&w->log, buf, LOG_INFO);
+}
+
+/* Thirsty cats look for a filled water bowl outside; if no tavern in
+   town has one, they sneak into a random tavern and steal a drink
+   instead, sometimes getting drunk and causing trouble. cats_tick()
+   (animals.c) already handled aging/thirst growth/lifecycle earlier in
+   the day - this is the market.c-style "who visits where" pass, just
+   for cats, so it needs Tavern/Kingdom, which is why it lives here
+   instead of animals.c. */
+static void cats_visit_taverns(Kingdom* k, Town* t, World* w)
+{
+    Animals* a = &t->cats;
+    int is_player_town = (k->id == w->player_kingdom_id && t->id == k->player_town_id);
+
+    for (int i = 0; i < a->count; i++) {
+        Cat* c = &a->cats[i];
+        if (!c->alive) continue;
+        if (c->thirst < CAT_THIRST_SEEK_THRESHOLD) continue;
+        if (t->tavern_count == 0) continue;
+
+        int bowl_tavern = -1;
+        for (int j = 0; j < t->tavern_count; j++) {
+            if (tavern_water_bowl_filled(&t->taverns[j], w->day)) {
+                bowl_tavern = j;
+                break;
+            }
+        }
+
+        if (bowl_tavern >= 0) {
+            c->thirst = 0.0f;
+            continue;
+        }
+
+        /* No filled bowl anywhere in town - sneaks into a random tavern
+           looking for something to drink. */
+        int j = rand() % t->tavern_count;
+        Tavern* b = &t->taverns[j];
+        int drink = (frand() < 0.7f) ? DRINK_ALE
+                  : (rand() % 2 == 0 ? DRINK_WINE_APPLE : DRINK_WINE_GRAPE);
+
+        if (b->drinks[drink].inventory.amount <= 0) continue;
+
+        b->drinks[drink].inventory.amount--;
+        tavern_recompute_total_inventory(b);
+        c->thirst = CLAMP(c->thirst - CAT_THIRST_RESET_ON_DRINK, 0.0f, 1.0f);
+
+        if (frand() < CAT_DRUNK_CHANCE) {
+            c->drunk = 1;
+            int is_player_tavern = is_player_town && j == t->player_tavern_id;
+            if (is_player_tavern) {
+                if (w->pending_event == EVENT_NONE) event_cat_trouble(w);
+            } else {
+                ai_handle_cat_trouble(b, w, j);
+            }
+        }
+    }
 }
 
 /* How the player's tavern stacked up against the busiest rival today.
@@ -402,6 +497,9 @@ int simulate_day(World* w)
 
             for (j = 0; j < t->tavern_count; j++)
                 tavern_post_market(&t->taverns[j], &results[j]);
+
+            cats_tick(&t->cats, &w->log);
+            cats_visit_taverns(k, t, w);
 
             /* Whether a fight/vomit/steal event fires today is driven by
                who actually showed up at each tavern. The player's tavern

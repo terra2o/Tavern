@@ -81,7 +81,7 @@ typedef struct Tavern {
     int supplier_id;
     Merchant* supplier;
     int is_water_bowl_outside; /* bool */
-    Animals cats;
+    int last_water_bowl_day;
 } Tavern;
 
 typedef struct {

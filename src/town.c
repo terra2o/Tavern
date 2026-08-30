@@ -15,10 +15,7 @@
 
 void town_taverns_init(Town* t, int capacity)
 {
-    /* idempotent: safe to call again to reset the pool, so free whatever
-       was already there (including each tavern's own animals) first */
-    for (int i = 0; i < t->tavern_count; i++)
-        animals_free(&t->taverns[i].cats);
+    /* idempotent: safe to call again to reset the pool */
     free(t->taverns);
     t->tavern_capacity = capacity;
     t->tavern_count = 0;
@@ -27,8 +24,6 @@ void town_taverns_init(Town* t, int capacity)
 
 void town_taverns_free(Town* t)
 {
-    for (int i = 0; i < t->tavern_count; i++)
-        animals_free(&t->taverns[i].cats);
     free(t->taverns);
     t->taverns = NULL;
     t->tavern_count = 0;
@@ -79,9 +74,21 @@ void town_relink_suppliers(Town* t)
     }
 }
 
+void town_cats_init(Town* t, int capacity)
+{
+    animals_free(&t->cats); /* idempotent: safe to call again to reset the pool */
+    animals_init(&t->cats, capacity);
+}
+
+void town_cats_free(Town* t)
+{
+    animals_free(&t->cats);
+}
+
 void town_free(Town* t)
 {
     population_free(&t->population);
     town_taverns_free(t);
     town_merchants_free(t);
+    town_cats_free(t);
 }

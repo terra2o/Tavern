@@ -11,7 +11,12 @@
 #ifndef ANIMALS_H
 #define ANIMALS_H
 
-#define ANIMALS_DEFAULT_CAPACITY 16
+#include "log.h"
+
+/* count (total ever spawned, dead or alive) never shrinks and never
+   reallocates past this, so it needs real headroom now that cats
+   reproduce instead of trickling in one at a time. */
+#define ANIMALS_DEFAULT_CAPACITY 64
 
 typedef struct Cat {
     int age;
@@ -34,11 +39,20 @@ typedef struct Animals {
 void animals_init(Animals* animals, int capacity);
 void animals_free(Animals* animals);
 void cat_spawn(Animals* animals);
-void simulate_cats(Animals* animals);
+
+/* One day of cat lifecycle: aging/thirst growth/sobering up/old-age
+   death for every cat already alive, plus a chance of new kittens from
+   every mature male/female pair in the pool. Doesn't know about taverns
+   at all - same split as population_tick vs market_simulate_all, see
+   cats_visit_taverns() (static, in sim.c) for the tavern-visiting half. */
+void cats_tick(Animals* animals, MessageLog* log);
 
 /* Recomputes alive_count by scanning cats[]. Only needed after
    bulk-loading cats from a save, where alive_count wasn't tracked
    incrementally. */
 void animals_recount_alive(Animals* animals);
+
+/* Counts of alive/drunk cats, for the left status panel. */
+void animals_stats(const Animals* animals, int* alive_count, int* drunk_count);
 
 #endif
