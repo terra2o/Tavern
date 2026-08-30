@@ -6,7 +6,6 @@
 *
 * Licensed under GPLv3
 *
-*
 */
 
 #include "../include/sim.h"
