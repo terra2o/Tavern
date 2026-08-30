@@ -31,11 +31,11 @@ It Features:
 - Expanding the tavern. You can only hire limited amount of employees per tavern "size"
 - Different kinds of wine (apple and grape)
 - Add anger to citizen struct
+- Cats!
 
 Here's a to-do list for this game (The ones with strikethrough are done):
 
 - Port code to c89
-- Add cats
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io
