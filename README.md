@@ -30,6 +30,7 @@ It Features:
 - Employees. You can hire them to increase available actions per day
 - Expanding the tavern. You can only hire limited amount of employees per tavern "size"
 - Different kinds of wine (apple and grape)
+- Patrons have anger
 - Cats!
 
 Here's a to-do list for this game (The ones with strikethrough are done):
