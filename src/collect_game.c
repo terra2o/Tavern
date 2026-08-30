@@ -118,24 +118,32 @@ void collect_handle_input(int ch, CollectState* s, Tavern* b)
 
         case 'w':
         case 'W':
+        case 'K':
+        case 'k':
         case KEY_UP:
             if (s->player_y > 0) s->player_y--;
             break;
 
         case 's':
         case 'S':
+        case 'j':
+        case 'J':
         case KEY_DOWN:
             if (s->player_y < s->height - 1) s->player_y++;
             break;
 
         case 'a':
         case 'A':
+        case 'h':
+        case 'H':
         case KEY_LEFT:
             if (s->player_x > 0) s->player_x--;
             break;
 
         case 'd':
         case 'D':
+        case 'L':
+        case 'l':
         case KEY_RIGHT:
             if (s->player_x < s->width - 1) s->player_x++;
             break;
