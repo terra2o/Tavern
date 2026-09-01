@@ -16,17 +16,20 @@
 
 static void write_tavern(FILE* f, int index, const Tavern* b)
 {
+    int d;
+    int fruit;
+
     fprintf(f, "tavern=%d,%.2f,%d", index, b->money, b->supplier_id);
-    for (int d = 0; d < DRINK_COUNT; d++) {
+    for (d = 0; d < DRINK_COUNT; d++) {
         fprintf(f, ",%f,%d,%d",
                 b->drinks[d].price, b->drinks[d].inventory.amount,
                 b->drinks[d].inventory.expiration_date);
     }
 
-    for (int d = 0; d < DRINK_COUNT; d++)
+    for (d = 0; d < DRINK_COUNT; d++)
         fprintf(f, ",%f", b->last_drink_price[d]);
 
-    for (int fruit = 0; fruit < FRUIT_COUNT; fruit++) {
+    for (fruit = 0; fruit < FRUIT_COUNT; fruit++) {
         fprintf(f, ",%d,%d",
                 b->fruits[fruit].inventory.amount,
                 b->fruits[fruit].inventory.expiration_date);
@@ -44,36 +47,38 @@ static void write_tavern(FILE* f, int index, const Tavern* b)
 /* Returns 1 on success. Adds the parsed tavern into t. */
 static int read_tavern(char* line, Town* t)
 {
-    if (strncmp(line, "tavern=", 7) != 0) return 0;
-    char* cursor = line + 7;
-
+    char* cursor;
     Tavern b = {0};
     int index, n;
+    int d;
+    int n2;
+    int fruit;
+
+    if (strncmp(line, "tavern=", 7) != 0) return 0;
+    cursor = line + 7;
+
     if (sscanf(cursor, "%d,%f,%d%n", &index, &b.money, &b.supplier_id, &n) != 3) return 0;
     cursor += n;
 
-    for (int d = 0; d < DRINK_COUNT; d++) {
+    for (d = 0; d < DRINK_COUNT; d++) {
         if (*cursor != ',') return 0;
         cursor++;
-        int n2;
         if (sscanf(cursor, "%f,%d,%d%n",
                    &b.drinks[d].price, &b.drinks[d].inventory.amount,
                    &b.drinks[d].inventory.expiration_date, &n2) != 3) return 0;
         cursor += n2;
     }
 
-    for (int d = 0; d < DRINK_COUNT; d++) {
+    for (d = 0; d < DRINK_COUNT; d++) {
         if (*cursor != ',') return 0;
         cursor++;
-        int n2;
         if (sscanf(cursor, "%f%n", &b.last_drink_price[d], &n2) != 1) return 0;
         cursor += n2;
     }
 
-    for (int fruit = 0; fruit < FRUIT_COUNT; fruit++) {
+    for (fruit = 0; fruit < FRUIT_COUNT; fruit++) {
         if (*cursor != ',') return 0;
         cursor++;
-        int n2;
         if (sscanf(cursor, "%d,%d%n",
                     &b.fruits[fruit].inventory.amount,
                     &b.fruits[fruit].inventory.expiration_date, &n2) != 2) return 0;
@@ -104,15 +109,18 @@ static void write_cat(FILE* f, const Cat* c)
    read_tavern appends whole taverns via town_add_tavern. */
 static int read_cat(char* line, Town* t)
 {
-    if (strncmp(line, "cat=", 4) != 0) return 0;
-    char* cursor = line + 4;
-
+    char* cursor;
     Cat c;
+    Animals* cats;
+
+    if (strncmp(line, "cat=", 4) != 0) return 0;
+    cursor = line + 4;
+
     if (sscanf(cursor, "%d,%f,%f,%d,%f,%d,%d",
                &c.age, &c.thirst, &c.curiosity, &c.drunk,
                &c.health, &c.alive, &c.male) != 7) return 0;
 
-    Animals* cats = &t->cats;
+    cats = &t->cats;
     if (cats->count >= cats->capacity) return 0;
 
     cats->cats[cats->count++] = c;
@@ -121,54 +129,60 @@ static int read_cat(char* line, Town* t)
 
 static void write_merchant(FILE* f, int index, const Merchant* m)
 {
+    int d;
+    int t;
+
     fprintf(f, "merchant=%d", index);
-    for (int d = 0; d < DRINK_COUNT; d++)
+    for (d = 0; d < DRINK_COUNT; d++)
         fprintf(f, ",%f", m->drink_price[d]);
     fprintf(f, ",%.3f,%.3f", m->quality, m->instability);
-    for (int d = 0; d < DRINK_COUNT; d++)
+    for (d = 0; d < DRINK_COUNT; d++)
         fprintf(f, ",%f,%f,%f", m->stock[d], m->restock_rate[d], m->max_stock[d]);
-    for (int t = 0; t < MAX_TAVERNS; t++)
+    for (t = 0; t < MAX_TAVERNS; t++)
         fprintf(f, ",%f", m->tavern_favor[t]);
     fprintf(f, "\n");
 }
 
 static int read_merchant(char* line, Town* t)
 {
-    if (strncmp(line, "merchant=", 9) != 0) return 0;
-    char* cursor = line + 9;
-
+    char* cursor;
     Merchant m = {0};
     int index, n;
+    int d;
+    int n2;
+    int n3;
+    int n4;
+    int favor_idx;
+
+    if (strncmp(line, "merchant=", 9) != 0) return 0;
+    cursor = line + 9;
+
     if (sscanf(cursor, "%d%n", &index, &n) != 1) return 0;
     cursor += n;
 
-    for (int d = 0; d < DRINK_COUNT; d++) {
+    for (d = 0; d < DRINK_COUNT; d++) {
         if (*cursor != ',') return 0;
         cursor++;
-        int n2;
         if (sscanf(cursor, "%f%n", &m.drink_price[d], &n2) != 1) return 0;
         cursor += n2;
     }
 
     if (*cursor != ',') return 0;
     cursor++;
-    int n2;
     if (sscanf(cursor, "%f,%f%n", &m.quality, &m.instability, &n2) != 2) return 0;
     cursor += n2;
 
-    for (int d = 0; d < DRINK_COUNT; d++) {
+    for (d = 0; d < DRINK_COUNT; d++) {
         if (*cursor != ',') return 0;
         cursor++;
-        int n3;
         if (sscanf(cursor, "%f,%f,%f%n",
                    &m.stock[d], &m.restock_rate[d], &m.max_stock[d], &n3) != 3) return 0;
         cursor += n3;
     }
 
-    for (int favor_idx = 0; favor_idx < MAX_TAVERNS; favor_idx++) {
+    for (favor_idx = 0; favor_idx < MAX_TAVERNS; favor_idx++) {
         if (*cursor != ',') return 0;
         cursor++;
-        int n4;
         if (sscanf(cursor, "%f%n", &m.tavern_favor[favor_idx], &n4) != 1) return 0;
         cursor += n4;
     }
@@ -179,35 +193,39 @@ static int read_merchant(char* line, Town* t)
 
 static void write_town(FILE* f, const Town* t)
 {
+    int i;
+    int d;
+    int j;
+
     fprintf(f, "[town]\n");
     fprintf(f, "population_capacity=%d\n", t->population.capacity);
     fprintf(f, "last_advertised_day=%d\n", t->last_advertised_day);
     fprintf(f, "player_tavern_id=%d\n\n", t->player_tavern_id);
 
     fprintf(f, "[population]\n");
-    for (int i = 0; i < t->population.count; i++) {
+    for (i = 0; i < t->population.count; i++) {
         Citizen* c = &t->population.citizens[i];
         fprintf(f, "citizen=%d,%f,%f,%f,%f,%f,%d,%d",
                 c->age, c->thirst, c->wealth, c->addiction, c->income, c->loyalty,
                 c->last_drink_day, c->favorite_tavern_id);
-        for (int d = 0; d < DRINK_COUNT; d++)
+        for (d = 0; d < DRINK_COUNT; d++)
             fprintf(f, ",%f", c->drink_preference[d]);
         fprintf(f, ",%f,%f,%d,%d\n", c->health, c->anger, c->homeless, c->alive);
     }
     fprintf(f, "\n");
 
     fprintf(f, "[merchants]\n");
-    for (int i = 0; i < t->merchant_count; i++)
+    for (i = 0; i < t->merchant_count; i++)
         write_merchant(f, i, &t->merchants[i]);
     fprintf(f, "\n");
 
     fprintf(f, "[taverns]\n");
-    for (int i = 0; i < t->tavern_count; i++)
+    for (i = 0; i < t->tavern_count; i++)
         write_tavern(f, i, &t->taverns[i]);
     fprintf(f, "\n");
 
     fprintf(f, "[cats]\n");
-    for (int j = 0; j < t->cats.count; j++)
+    for (j = 0; j < t->cats.count; j++)
         write_cat(f, &t->cats.cats[j]);
     fprintf(f, "\n");
 }
@@ -215,6 +233,9 @@ static void write_town(FILE* f, const Town* t)
 int save_game(const char* path, const World* w)
 {
     FILE* f = fopen(path, "w");
+    int ki;
+    int ti;
+
     if (!f) return 0;
 
     fprintf(f, "version=%s\n\n", GAME_VERSION);
@@ -223,7 +244,7 @@ int save_game(const char* path, const World* w)
     fprintf(f, "day=%d\n", w->day);
     fprintf(f, "player_kingdom_id=%d\n\n", w->player_kingdom_id);
 
-    for (int ki = 0; ki < w->kingdom_count; ki++) {
+    for (ki = 0; ki < w->kingdom_count; ki++) {
         const Kingdom* k = &w->kingdoms[ki];
 
         fprintf(f, "[kingdom]\n");
@@ -234,7 +255,7 @@ int save_game(const char* path, const World* w)
         fprintf(f, "money_supply_prev=%.6f\n", k->money_supply_prev);
         fprintf(f, "player_town_id=%d\n\n", k->player_town_id);
 
-        for (int ti = 0; ti < k->town_count; ti++)
+        for (ti = 0; ti < k->town_count; ti++)
             write_town(f, &k->towns[ti]);
     }
 
@@ -246,6 +267,14 @@ int save_game(const char* path, const World* w)
 int load_game(const char* path, World* w)
 {
     FILE* f = fopen(path, "r");
+    int population_capacity = 100000;
+    char line[512];
+    enum { NONE, WORLD, KINGDOM, TOWN, POPULATION, MERCHANTS, TAVERNS, CATS } section = NONE;
+    Kingdom* current_kingdom = NULL;
+    Town* current_town = NULL;
+    int ki;
+    int ti;
+
     if (!f) return 0;
 
     /*
@@ -260,13 +289,6 @@ int load_game(const char* path, World* w)
     memset(w, 0, sizeof(*w));
     world_kingdoms_init(w, MAX_KINGDOMS);
 
-    int population_capacity = 100000;
-
-    char line[512];
-    enum { NONE, WORLD, KINGDOM, TOWN, POPULATION, MERCHANTS, TAVERNS, CATS } section = NONE;
-    Kingdom* current_kingdom = NULL;
-    Town* current_town = NULL;
-
     while (fgets(line, sizeof(line), f)) {
         if (line[0] == '\n' || line[0] == '#')
             continue;
@@ -276,9 +298,11 @@ int load_game(const char* path, World* w)
             continue;
         }
         if (strcmp(line, "[kingdom]\n") == 0) {
-            section = KINGDOM;
             Kingdom shell = {0};
-            int idx = world_add_kingdom(w, shell);
+            int idx;
+
+            section = KINGDOM;
+            idx = world_add_kingdom(w, shell);
             current_kingdom = (idx >= 0) ? &w->kingdoms[idx] : NULL;
             if (current_kingdom) kingdom_towns_init(current_kingdom, MAX_TOWNS);
             current_town = NULL;
@@ -341,21 +365,25 @@ int load_game(const char* path, World* w)
                 break;
 
             case POPULATION: {
-                if (!current_town) break;
                 Citizen c;
-                if (strncmp(line, "citizen=", 8) != 0) break;
-                char* cursor = line + 8;
+                char* cursor;
                 int n;
+                int ok;
+                int d;
+                int n2;
+
+                if (!current_town) break;
+                if (strncmp(line, "citizen=", 8) != 0) break;
+                cursor = line + 8;
                 if (sscanf(cursor, "%d,%f,%f,%f,%f,%f,%d,%d%n",
                            &c.age, &c.thirst, &c.wealth, &c.addiction, &c.income, &c.loyalty,
                            &c.last_drink_day, &c.favorite_tavern_id, &n) != 8) break;
                 cursor += n;
 
-                int ok = 1;
-                for (int d = 0; d < DRINK_COUNT; d++) {
+                ok = 1;
+                for (d = 0; d < DRINK_COUNT; d++) {
                     if (*cursor != ',') { ok = 0; break; }
                     cursor++;
-                    int n2;
                     if (sscanf(cursor, "%f%n", &c.drink_preference[d], &n2) != 1) { ok = 0; break; }
                     cursor += n2;
                 }
@@ -391,14 +419,15 @@ int load_game(const char* path, World* w)
 
     fclose(f);
 
-    for (int ki = 0; ki < w->kingdom_count; ki++) {
+    for (ki = 0; ki < w->kingdom_count; ki++) {
         Kingdom* k = &w->kingdoms[ki];
 
         /* Guard for saves that predate inflation */
         if (k->inflation_rate <= 0.0f) k->inflation_rate = 1.0f;
 
-        for (int ti = 0; ti < k->town_count; ti++) {
+        for (ti = 0; ti < k->town_count; ti++) {
             Town* t = &k->towns[ti];
+            int i;
 
             /* Saves from before the merchant stock/favor fields existed
                will fail every read_merchant() call above (old
@@ -417,7 +446,7 @@ int load_game(const char* path, World* w)
                 fallback.instability = 0.2f;
                 merchant_init_default_stock(&fallback);
                 town_add_merchant(t, fallback);
-                for (int i = 0; i < t->tavern_count; i++)
+                for (i = 0; i < t->tavern_count; i++)
                     t->taverns[i].supplier_id = 0;
             }
 
@@ -426,7 +455,7 @@ int load_game(const char* path, World* w)
             town_relink_suppliers(t);
 
             /* Defensive clamping */
-            for (int i = 0; i < t->tavern_count; i++) {
+            for (i = 0; i < t->tavern_count; i++) {
                 Tavern* b = &t->taverns[i];
                 b->rumor = CLAMP(b->rumor, 0, 1);
                 b->consistency = CLAMP(b->consistency, 0, 1);

@@ -37,23 +37,28 @@ typedef BOOL (WINAPI *SetCurrentConsoleFontEx_t)(HANDLE, BOOL, PCONSOLE_FONT_INF
 static void windows_shrink_console_font(void)
 {
     HMODULE k32 = GetModuleHandleA("kernel32.dll");
+    GetCurrentConsoleFontEx_t pGetCurrentConsoleFontEx;
+    SetCurrentConsoleFontEx_t pSetCurrentConsoleFontEx;
+    HANDLE con;
+    CONSOLE_FONT_INFOEX font;
+
     if (!k32)
         return;
 
-    GetCurrentConsoleFontEx_t pGetCurrentConsoleFontEx =
+    pGetCurrentConsoleFontEx =
         (GetCurrentConsoleFontEx_t)GetProcAddress(k32, "GetCurrentConsoleFontEx");
-    SetCurrentConsoleFontEx_t pSetCurrentConsoleFontEx =
+    pSetCurrentConsoleFontEx =
         (SetCurrentConsoleFontEx_t)GetProcAddress(k32, "SetCurrentConsoleFontEx");
     if (!pGetCurrentConsoleFontEx || !pSetCurrentConsoleFontEx)
         return;
 
-    HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+    con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
                               FILE_SHARE_READ | FILE_SHARE_WRITE,
                               NULL, OPEN_EXISTING, 0, NULL);
     if (con == INVALID_HANDLE_VALUE)
         return;
 
-    CONSOLE_FONT_INFOEX font = {0};
+    memset(&font, 0, sizeof(font));
     font.cbSize = sizeof(font);
     if (pGetCurrentConsoleFontEx(con, FALSE, &font)) {
         if (font.dwFontSize.X > 8) font.dwFontSize.X = 8;
@@ -76,13 +81,15 @@ static void windows_shrink_console_font(void)
    full screen without any headroom beyond that. */
 static void windows_grow_console_buffer(void)
 {
-    HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+    HANDLE con;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+    con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
                               FILE_SHARE_READ | FILE_SHARE_WRITE,
                               NULL, OPEN_EXISTING, 0, NULL);
     if (con == INVALID_HANDLE_VALUE)
         return;
 
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
     if (GetConsoleScreenBufferInfo(con, &csbi)) {
         COORD size = GetLargestConsoleWindowSize(con);
         SHORT win_x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
@@ -124,20 +131,23 @@ static void windows_grow_console_buffer(void)
    active. */
 static int windows_console_size_changed(void)
 {
-    HANDLE con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+    HANDLE con;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    int win_x, win_y;
+
+    con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
                               FILE_SHARE_READ | FILE_SHARE_WRITE,
                               NULL, OPEN_EXISTING, 0, NULL);
     if (con == INVALID_HANDLE_VALUE)
         return 1;
 
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
     if (!GetConsoleScreenBufferInfo(con, &csbi)) {
         CloseHandle(con);
         return 1;
     }
 
-    int win_x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-    int win_y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    win_x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    win_y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
     CloseHandle(con);
     return win_x != COLS || win_y != LINES;
 }
@@ -169,10 +179,11 @@ static void windows_poll_resize(void)
 static void windows_disable_quick_edit(void)
 {
     HANDLE con = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD mode;
+
     if (con == INVALID_HANDLE_VALUE)
         return;
 
-    DWORD mode;
     if (GetConsoleMode(con, &mode)) {
         mode &= ~ENABLE_QUICK_EDIT_MODE;
         mode |= ENABLE_EXTENDED_FLAGS;
@@ -187,8 +198,10 @@ static void event_handler(Tavern* b, Town* t, Kingdom* k, World* w, UiState* ui_
     ui_state->mode = mode;
     *resolved = 0;
     while (!*resolved) {
+        int ch;
+
         draw_ui(b, w->day, 0, actions_per_day, t, k, w, ui_state, &ui_state->war);
-        int ch = getch();
+        ch = getch();
         napms(16);
 #ifdef _WIN32
         windows_poll_resize();
@@ -244,16 +257,24 @@ static Tavern make_starter_tavern(int day, int merchant_id, const Merchant* m)
 
 static void init_new_game(World* w)
 {
+    Kingdom kingdom = {0};
+    Town town = {0};
+    Merchant m_init = {0};
+    Merchant m_rival = {0};
+    Tavern b_init;
+    Tavern rival;
+    int merchant_id;
+    int rival_merchant_id;
+    int i;
+
     w->day = 0;
 
     world_kingdoms_init(w, MAX_KINGDOMS);
 
-    Kingdom kingdom = {0};
     kingdom.inflation_rate = 1.0f;
     kingdom.money_supply_prev = 0.0f;
     kingdom_towns_init(&kingdom, MAX_TOWNS);
 
-    Town town = {0};
     town.last_advertised_day = 0;
     town_merchants_init(&town, MAX_MERCHANTS);
     town_taverns_init(&town, MAX_TAVERNS);
@@ -261,35 +282,33 @@ static void init_new_game(World* w)
     /* Seed a small starting colony - cats_tick() only makes kittens from
        existing mature pairs, so the town needs a handful to start with
        or it would never have any cats at all. */
-    for (int i = 0; i < 4; i++) cat_spawn(&town.cats);
+    for (i = 0; i < 4; i++) cat_spawn(&town.cats);
     population_init(&town.population, 100000);
-    for (int i = 0; i < 150; i++) citizen_spawn(&town.population);
+    for (i = 0; i < 150; i++) citizen_spawn(&town.population);
 
-    Merchant m_init = {0};
     m_init.drink_price[DRINK_ALE] = 5.0f;
     m_init.drink_price[DRINK_WINE_APPLE] = 90.0f;
     m_init.drink_price[DRINK_WINE_GRAPE] = 90.0f;
     m_init.quality = 0.7f;
     m_init.instability = 0.2f;
     merchant_init_default_stock(&m_init);
-    int merchant_id = town_add_merchant(&town, m_init);
+    merchant_id = town_add_merchant(&town, m_init);
 
-    Tavern b_init = make_starter_tavern(w->day, merchant_id, &m_init);
+    b_init = make_starter_tavern(w->day, merchant_id, &m_init);
     town.player_tavern_id = town_add_tavern(&town, b_init);
 
     /* Rival's supplier: cheaper on ale but riskier and lower quality,
        so the two starter taverns draw from genuinely different
        merchants instead of sharing one. */
-    Merchant m_rival = {0};
     m_rival.drink_price[DRINK_ALE] = 4.5f;
     m_rival.drink_price[DRINK_WINE_APPLE] = 90.0f;
     m_rival.drink_price[DRINK_WINE_GRAPE] = 90.0f;
     m_rival.quality = 0.6f;
     m_rival.instability = 0.35f;
     merchant_init_default_stock(&m_rival);
-    int rival_merchant_id = town_add_merchant(&town, m_rival);
+    rival_merchant_id = town_add_merchant(&town, m_rival);
 
-    Tavern rival = make_starter_tavern(w->day, rival_merchant_id, &m_rival);
+    rival = make_starter_tavern(w->day, rival_merchant_id, &m_rival);
     rival.money = 500.0f;
     town_add_tavern(&town, rival);
 
@@ -301,18 +320,25 @@ static void init_new_game(World* w)
 
 int main(void)
 {
-    srand(time(NULL));
-
     World w = {0};
+    Kingdom* k;
+    Town* t;
+    Tavern* b;
+    int game_running;
+    char version[64];
+    char pool_buf[64];
+    UiState ui_state;
+
+    srand(time(NULL));
 
     if (!load_game(SAVE_PATH, &w)) {
         init_new_game(&w);
         save_game(SAVE_PATH, &w);
     }
 
-    Kingdom* k = world_player_kingdom(&w);
-    Town* t = world_player_town(&w);
-    Tavern* b = world_player_tavern(&w);
+    k = world_player_kingdom(&w);
+    t = world_player_town(&w);
+    b = world_player_tavern(&w);
 
     initscr();
 #ifdef _WIN32
@@ -335,34 +361,38 @@ int main(void)
     init_colors();
     curs_set(0);
 
-    int game_running = 1;
-    char version[64];
-    snprintf(version, sizeof(version), "%s", VERSION_STRING);
+    game_running = 1;
+    tavern_snprintf(version, sizeof(version), "%s", VERSION_STRING);
     log_message(&w.log, version, LOG_IMPORTANT);
     log_message(&w.log, "Welcome! Press a key to start the best tavern simulation ever...", LOG_IMPORTANT);
 
-    char pool_buf[64];
-    snprintf(pool_buf, sizeof(pool_buf), "Taverns in town: %d | Merchants: %d",
+    tavern_snprintf(pool_buf, sizeof(pool_buf), "Taverns in town: %d | Merchants: %d",
              t->tavern_count, t->merchant_count);
     log_message(&w.log, pool_buf, LOG_INFO);
 
-    UiState ui_state;
     ui_state_init(&ui_state);
     ui_state.war.our_kingdom_attack = k->our_kingdom_attack;
 
     while (game_running) {
         /* Recomputed each day since hiring can change it mid-game */
         int actions_per_day = tavern_actions_per_day(b);
+        int action_num;
+        int sales;
+        int total_wine;
+        char buf_l[256];
 
         /* Allow multiple actions per day */
-        for (int action_num = 1;
+        for (action_num = 1;
              action_num <= actions_per_day && game_running;
              action_num++) {
 
             while (1) {
+                int ch;
+                Action choice;
+
                 draw_ui(b, w.day, action_num, actions_per_day, t, k, &w, &ui_state, &ui_state.war);
 
-                int ch = getch();
+                ch = getch();
                 napms(16);
 
 #ifdef _WIN32
@@ -395,7 +425,7 @@ int main(void)
                     continue;
                 }
 
-                Action choice = read_action(ch);
+                choice = read_action(ch);
 
                 if (choice == (Action)-1) {
                     game_running = 0;
@@ -441,7 +471,7 @@ int main(void)
             break;
 
         /* End of day simulation (ADVANCES w.day) */
-        int sales = simulate_day(&w);
+        sales = simulate_day(&w);
 
         /* Resolve any pending event before the next day */
         /* War events fire additionally when at war */
@@ -474,9 +504,8 @@ int main(void)
 
         save_game(SAVE_PATH, &w);
 
-        int total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount + b->drinks[DRINK_WINE_GRAPE].inventory.amount;
-        char buf_l[256];
-        snprintf(buf_l, sizeof(buf_l),
+        total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount + b->drinks[DRINK_WINE_GRAPE].inventory.amount;
+        tavern_snprintf(buf_l, sizeof(buf_l),
                  "End of day %d: %d sales | Money: $%.2f | Ale: %d | Wine: %d | Rep: %.2f",
                  w.day, sales, b->money, b->drinks[DRINK_ALE].inventory.amount,
                  total_wine, b->reputation);

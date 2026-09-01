@@ -14,8 +14,10 @@
 
 void kingdom_towns_init(Kingdom* k, int capacity)
 {
+    int i;
+
     /* idempotent: safe to call again to reset the pool */
-    for (int i = 0; i < k->town_count; i++)
+    for (i = 0; i < k->town_count; i++)
         town_free(&k->towns[i]);
     free(k->towns);
     k->town_capacity = capacity;
@@ -25,7 +27,9 @@ void kingdom_towns_init(Kingdom* k, int capacity)
 
 void kingdom_towns_free(Kingdom* k)
 {
-    for (int i = 0; i < k->town_count; i++)
+    int i;
+
+    for (i = 0; i < k->town_count; i++)
         town_free(&k->towns[i]);
     free(k->towns);
     k->towns = NULL;
@@ -48,8 +52,10 @@ void kingdom_free(Kingdom* k)
 
 void world_kingdoms_init(World* w, int capacity)
 {
+    int i;
+
     /* idempotent: safe to call again to reset the pool */
-    for (int i = 0; i < w->kingdom_count; i++)
+    for (i = 0; i < w->kingdom_count; i++)
         kingdom_free(&w->kingdoms[i]);
     free(w->kingdoms);
     w->kingdom_capacity = capacity;
@@ -59,7 +65,9 @@ void world_kingdoms_init(World* w, int capacity)
 
 void world_kingdoms_free(World* w)
 {
-    for (int i = 0; i < w->kingdom_count; i++)
+    int i;
+
+    for (i = 0; i < w->kingdom_count; i++)
         kingdom_free(&w->kingdoms[i]);
     free(w->kingdoms);
     w->kingdoms = NULL;

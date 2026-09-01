@@ -43,10 +43,12 @@ void collect_state_start(CollectState* s, int max_x, int max_y)
 
 static int cell_is_free(const CollectState* s, int x, int y)
 {
+    int i;
+
     if (x == s->player_x && y == s->player_y)
         return 0;
 
-    for (int i = 0; i < s->spawned_total; i++) {
+    for (i = 0; i < s->spawned_total; i++) {
         if (s->fruits[i].active && s->fruits[i].x == x && s->fruits[i].y == y)
             return 0;
     }
@@ -57,13 +59,15 @@ static void spawn_fruit(CollectState* s)
 {
     int x, y;
     int tries = 0;
+    CollectFruit* f;
+
     do {
         x = rand_range(0, s->width - 1);
         y = rand_range(0, s->height - 1);
         tries++;
     } while (!cell_is_free(s, x, y) && tries < 50);
 
-    CollectFruit* f = &s->fruits[s->spawned_total];
+    f = &s->fruits[s->spawned_total];
     f->x = x;
     f->y = y;
     f->type = rand_range(0, FRUIT_COUNT - 1);
@@ -89,7 +93,9 @@ void collect_tick(CollectState* s)
 
 static void try_collect(CollectState* s, Tavern* b)
 {
-    for (int i = 0; i < s->spawned_total; i++) {
+    int i;
+
+    for (i = 0; i < s->spawned_total; i++) {
         CollectFruit* f = &s->fruits[i];
         if (!f->active) continue;
         if (f->x != s->player_x || f->y != s->player_y) continue;

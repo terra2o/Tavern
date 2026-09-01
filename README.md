@@ -35,7 +35,7 @@ It Features:
 
 Here's a to-do list for this game (The ones with strikethrough are done):
 
-- Port code to c89
+- ~~Port code to c89~~
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io

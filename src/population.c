@@ -35,7 +35,9 @@ void population_free(Population* pop)
 void population_recount_alive(Population* pop)
 {
     int alive = 0;
-    for (int i = 0; i < pop->count; i++)
+    int i;
+
+    for (i = 0; i < pop->count; i++)
         if (pop->citizens[i].alive) alive++;
     pop->alive_count = alive;
 }
@@ -46,8 +48,9 @@ void population_stats(const Population* pop, float* avg_thirst, float* avg_addic
     float addiction_sum = 0.0f;
     float anger_sum = 0.0f;
     int alive = 0;
+    int i;
 
-    for (int i = 0; i < pop->count; i++) {
+    for (i = 0; i < pop->count; i++) {
         const Citizen* c = &pop->citizens[i];
         if (!c->alive) continue;
         thirst_sum += c->thirst;
@@ -70,9 +73,12 @@ void population_stats(const Population* pop, float* avg_thirst, float* avg_addic
 
 void citizen_spawn(Population* pop)
 {
+    Citizen* c;
+    int d;
+
     if (pop->count >= pop->capacity) return;
 
-    Citizen* c = &pop->citizens[pop->count];
+    c = &pop->citizens[pop->count];
     c->age = 0;
     c->thirst = frand();
     c->wealth = frand() * 100.0f;
@@ -85,7 +91,7 @@ void citizen_spawn(Population* pop)
     c->loyalty = 0.0f;
     c->last_drink_day = -1;
     c->favorite_tavern_id = -1;
-    for (int d = 0; d < DRINK_COUNT; d++)
+    for (d = 0; d < DRINK_COUNT; d++)
         c->drink_preference[d] = frand();
     c->health = 1.0f;
     c->homeless = 0;
@@ -115,15 +121,18 @@ void population_tick(Population* pop, MessageLog* log)
 {
     int deaths_health = 0;
     int deaths_age = 0;
+    int i;
 
-    for (int i = 0; i < pop->count; i++) {
+    for (i = 0; i < pop->count; i++) {
         Citizen* c = &pop->citizens[i];
+        float growth;
+
         if (!c->alive) continue;
         c->age++;
 
         /* Thirst builds up daily; the market pass resets it for
            whoever actually visits a tavern that day. */
-        float growth = THIRST_GROWTH_PER_DAY + c->addiction * ADDICTION_THIRST_BOOST;
+        growth = THIRST_GROWTH_PER_DAY + c->addiction * ADDICTION_THIRST_BOOST;
         c->thirst = CLAMP(c->thirst + growth, 0.0f, 1.0f);
 
         c->wealth += c->income;
@@ -154,12 +163,12 @@ void population_tick(Population* pop, MessageLog* log)
 
     if (deaths_health > 0) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "%d townsfolk drank themselves to death", deaths_health);
+        tavern_snprintf(buf, sizeof(buf), "%d townsfolk drank themselves to death", deaths_health);
         log_message(log, buf, LOG_WARN);
     }
     if (deaths_age > 0) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "%d elderly townsfolk passed away", deaths_age);
+        tavern_snprintf(buf, sizeof(buf), "%d elderly townsfolk passed away", deaths_age);
         log_message(log, buf, LOG_INFO);
     }
 }

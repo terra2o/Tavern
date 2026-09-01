@@ -11,7 +11,7 @@ AR_DOS       := $(DJGPP_DIR)/bin/i586-pc-msdosdjgpp-ar
 STRIP_DOS    := $(DJGPP_DIR)/bin/i586-pc-msdosdjgpp-strip
 
 WARNINGS := -Wall -Wextra
-STD      := -std=c99
+STD      := -std=c89
 INCLUDE  := -Iinclude
 CURSES_LIB := -lncurses
 LIBS     := -lm $(CURSES_LIB)
@@ -49,7 +49,8 @@ SRC := \
 	src/inflation.c \
 	src/event.c \
 	src/collect_game.c \
-	src/animals.c
+	src/animals.c \
+	src/compat.c
 
 OBJ := $(SRC:.c=.o)
 
