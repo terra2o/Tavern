@@ -16,7 +16,7 @@
 typedef enum {
     FRUIT_APPLE,
     FRUIT_GRAPE,
-    FRUIT_COUNT,
+    FRUIT_COUNT
 } FruitType;
 
 typedef struct Fruit {

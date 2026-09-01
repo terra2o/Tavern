@@ -24,9 +24,11 @@ void apply_clean_pathway(Tavern* b, int current_day)
 float people_fall_because_pathway_dirty(Tavern* b, int current_day)
 {
     int days_dirty = current_day - b->last_pathway_clean_day;
+    double loss_multiplier;
+
     if (days_dirty < PATHWAY_DIRTY_THRESHOLD_DAYS) return 0.0f;
 
-    double loss_multiplier = 1.0 + (days_dirty - PATHWAY_DIRTY_THRESHOLD_DAYS) * PATHWAY_LOSS_GROWTH_PER_DAY;
+    loss_multiplier = 1.0 + (days_dirty - PATHWAY_DIRTY_THRESHOLD_DAYS) * PATHWAY_LOSS_GROWTH_PER_DAY;
     if (loss_multiplier > PATHWAY_LOSS_MULTIPLIER_CAP) loss_multiplier = PATHWAY_LOSS_MULTIPLIER_CAP;
 
     return (float)CLAMP(PATHWAY_BASE_LOSS_FRACTION * loss_multiplier, 0.0, 1.0);

@@ -113,7 +113,7 @@ void apply_action(Tavern* b, Action a, Town* t, Kingdom* k, World* w, int amount
             }
             tavern_recompute_total_inventory(b);
 
-            snprintf(buf, sizeof(buf), "You made %d apple wine and %d grape wine.",
+            tavern_snprintf(buf, sizeof(buf), "You made %d apple wine and %d grape wine.",
                      made[WINE_APPLE], made[WINE_GRAPE]);
             log_message(&w->log, buf, LOG_INFO);
 
@@ -122,12 +122,14 @@ void apply_action(Tavern* b, Action a, Town* t, Kingdom* k, World* w, int amount
 
         case ACT_HIRE_EMPLOYEES: {
             int max_employees = b->tavern_size * EMPLOYEES_PER_TAVERN_SIZE;
+            float employee_cut;
+
             if (b->employees >= max_employees) {
                 log_message(&w->log, "Tavern is full, expand it to hire more employees.", LOG_INFO);
                 break;
             }
 
-            float employee_cut = b->employees_wage * k->inflation_rate;
+            employee_cut = b->employees_wage * k->inflation_rate;
             if (b->money >= employee_cut) {
                 b->money -= employee_cut;
                 b->employees++;
@@ -169,7 +171,7 @@ void process_payment(Kingdom* k, World* w, Tavern* b, int current_day)
         char buf[256];
         b->money -= actual_rent;
         p->next_payment_day += p->pay_period;
-        snprintf(buf, sizeof(buf), "Paid rent: $%.2f", actual_rent);
+        tavern_snprintf(buf, sizeof(buf), "Paid rent: $%.2f", actual_rent);
         log_message(&w->log, buf, LOG_IMPORTANT);
     }
 
@@ -179,7 +181,7 @@ void process_payment(Kingdom* k, World* w, Tavern* b, int current_day)
                 b->money -= employee_cut;
                 total_paid_to_employees += employee_cut;
             }
-            snprintf(buf_e, sizeof(buf_e), "Wage paid to employees in total $%.2f", total_paid_to_employees);
+            tavern_snprintf(buf_e, sizeof(buf_e), "Wage paid to employees in total $%.2f", total_paid_to_employees);
             log_message(&w->log, buf_e, LOG_IMPORTANT);
         }
         p->next_wage_day += p->pay_period;
@@ -236,7 +238,7 @@ static void tavern_post_market(Tavern* b, const DayResult* day)
 
     /* Consistency punishes wild price changes */
     for (d = 0; d < DRINK_COUNT; d++) {
-        price_change = fabsf(b->drinks[d].price - b->last_drink_price[d]);
+        price_change = (float)fabs(b->drinks[d].price - b->last_drink_price[d]);
         b->consistency -= price_change * 0.5f;
         b->last_drink_price[d] = b->drinks[d].price;
     }
@@ -305,7 +307,7 @@ static void ai_tavern_reconsider_supplier(Tavern* b, Town* t, World* w)
         char buf[128];
         b->supplier_id = best_id;
         b->supplier = &t->merchants[best_id];
-        snprintf(buf, sizeof(buf), "Tavern #%d switched to a new supplier.", b->id);
+        tavern_snprintf(buf, sizeof(buf), "Tavern #%d switched to a new supplier.", b->id);
         log_message(&w->log, buf, LOG_INFO);
     }
 }
@@ -380,7 +382,7 @@ static void ai_handle_cat_trouble(Tavern* b, World* w, int tavern_id)
     b->handsomeness = CLAMP(b->handsomeness, 0.0f, 1.0f);
     b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
 
-    snprintf(buf, sizeof(buf), "A drunk cat caused a scene at tavern #%d.", tavern_id);
+    tavern_snprintf(buf, sizeof(buf), "A drunk cat caused a scene at tavern #%d.", tavern_id);
     log_message(&w->log, buf, LOG_INFO);
 }
 
@@ -395,15 +397,22 @@ static void cats_visit_taverns(Kingdom* k, Town* t, World* w)
 {
     Animals* a = &t->cats;
     int is_player_town = (k->id == w->player_kingdom_id && t->id == k->player_town_id);
+    int i;
 
-    for (int i = 0; i < a->count; i++) {
+    for (i = 0; i < a->count; i++) {
         Cat* c = &a->cats[i];
+        int bowl_tavern;
+        int j;
+        Tavern* b;
+        int drink;
+        int is_player_tavern;
+
         if (!c->alive) continue;
         if (c->thirst < CAT_THIRST_SEEK_THRESHOLD) continue;
         if (t->tavern_count == 0) continue;
 
-        int bowl_tavern = -1;
-        for (int j = 0; j < t->tavern_count; j++) {
+        bowl_tavern = -1;
+        for (j = 0; j < t->tavern_count; j++) {
             if (tavern_water_bowl_filled(&t->taverns[j], w->day)) {
                 bowl_tavern = j;
                 break;
@@ -417,10 +426,10 @@ static void cats_visit_taverns(Kingdom* k, Town* t, World* w)
 
         /* No filled bowl anywhere in town - sneaks into a random tavern
            looking for something to drink. */
-        int j = rand() % t->tavern_count;
-        Tavern* b = &t->taverns[j];
-        int drink = (frand() < 0.7f) ? DRINK_ALE
-                  : (rand() % 2 == 0 ? DRINK_WINE_APPLE : DRINK_WINE_GRAPE);
+        j = rand() % t->tavern_count;
+        b = &t->taverns[j];
+        drink = (frand() < 0.7f) ? DRINK_ALE
+              : (rand() % 2 == 0 ? DRINK_WINE_APPLE : DRINK_WINE_GRAPE);
 
         if (b->drinks[drink].inventory.amount <= 0) continue;
 
@@ -430,7 +439,7 @@ static void cats_visit_taverns(Kingdom* k, Town* t, World* w)
 
         if (frand() < CAT_DRUNK_CHANCE) {
             c->drunk = 1;
-            int is_player_tavern = is_player_town && j == t->player_tavern_id;
+            is_player_tavern = is_player_town && j == t->player_tavern_id;
             if (is_player_tavern) {
                 if (w->pending_event == EVENT_NONE) event_cat_trouble(w);
             } else {
@@ -461,7 +470,7 @@ static void log_daily_summary(Town* t, World* w, DayResult* results)
             }
         }
         player_customers = results[t->player_tavern_id].customers;
-        snprintf(buf, sizeof(buf), "Competition: you drew %d customers, tavern #%d drew %d.",
+        tavern_snprintf(buf, sizeof(buf), "Competition: you drew %d customers, tavern #%d drew %d.",
                  player_customers, best_rival, best_rival_customers);
         log_message(&w->log, buf, LOG_INFO);
     }

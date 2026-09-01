@@ -8,7 +8,7 @@ After downloading/installing the dependencies, simply enter `make release` into 
 
 ## Old systems (Windows 95/98/XP..., DOS...)
 
-This is the trickier part! First, (although I'm planning to port the code to c89) you need a c99 compiler, and you need (if you're on Windows/DOS) PDCurses.
+This is the trickier part! First, you need a c89 compiler, and you need (if you're on Windows/DOS) PDCurses.
 
 If you're on a virtual machine, you can make a shared directory between the host and guest. If you're on physical hardware, flash/copy the game onto some disk you can use on that computer.
 
@@ -16,7 +16,7 @@ If you're on a virtual machine, you can make a shared directory between the host
 
 - A DJGPP cross-compiler (GCC retargeted for DOS), typically with the triplet `i586-pc-msdosdjgpp-`.
     - This generally isn't in mainstream distro package repos, so you'll need to find a prebuilt cross-toolchain package for your distro or build one yourself from the DJGPP crossgcc build scripts.
-    - Use a modern DJGPP build (GCC 12 or newer) if you can. Vintage DJGPP 2.03/2.04 installs only support C90 plus a handful of C99 features in the runtime library, even though the compiler itself may accept more. You may hit gaps in headers like `stdint.h` before Tavern's c89 port lands.
+    - A vintage DJGPP 2.03/2.04 install should work fine now that Tavern builds as straight C90 - it only needs `printf`/`sscanf`-family stdio and libc, nothing from the newer feature set.
 - PDCurses' `dos` platform sources, already vendored at `vendor/pdcurses/dos/` (pulled from the same PDCurses release as `vendor/pdcurses/wincon/`).
 
 Steps:
@@ -47,5 +47,4 @@ Run `make clean-windows` to remove both Tavern's and PDCurses' build artifacts i
 
 ### Notes
 
-- Since Tavern currently isn't c89 clean, older/stricter compilers (real mode Turbo C, etc.) may reject the source outright. Stick to DJGPP/Watcom/MinGW for now.
-- Once the c89 port lands, this section will get simpler and open the door to more vintage toolchains.
+- Tavern builds clean as C90/c89 now, so stricter compilers of the era (Watcom, older Turbo C/Borland C++ toolchains, etc.) should accept the source without the gaps that used to require sticking to DJGPP/MinGW specifically. If you get one of those working, let us know.

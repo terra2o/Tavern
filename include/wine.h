@@ -16,7 +16,7 @@
 typedef enum WineType {
     WINE_APPLE,
     WINE_GRAPE,
-    WINE_COUNT,
+    WINE_COUNT
 } WineType;
 
 /* Wine varieties are just the DrinkType entries right after DRINK_ALE,

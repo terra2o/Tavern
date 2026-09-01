@@ -55,9 +55,11 @@ void event_war(Kingdom* k, World* w)
 
 void random_war_event(Kingdom* k, World* w)
 {
+    int roll;
+
     if (!k->at_war) return;
 
-    int roll = rand() % 4;
+    roll = rand() % 4;
     if (roll == 0)
         w->pending_event = EVENT_WAR_SOLDIERS;
     else if (roll == 1)
@@ -227,8 +229,9 @@ void handle_war_refugees(int choice, Tavern* b, Town* t, World* w)
     switch (choice) {
     case 1: /* welcome them */
         if (rand() % 10 < 6) { /* 60% */
+            int i;
             b->reputation += 0.25f;
-            for (int i = 0; i < 15; i++) {
+            for (i = 0; i < 15; i++) {
                 citizen_spawn(&t->population);
                 t->population.citizens[t->population.count - 1].homeless = 1;
             }
@@ -327,7 +330,7 @@ static void ai_handle_fight(Tavern* b, World* w, int tavern_id)
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
     b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
 
-    snprintf(buf, sizeof(buf), "A brawl broke out at tavern #%d.", tavern_id);
+    tavern_snprintf(buf, sizeof(buf), "A brawl broke out at tavern #%d.", tavern_id);
     log_message(&w->log, buf, LOG_INFO);
 }
 
@@ -350,7 +353,7 @@ static void ai_handle_vomit(Tavern* b, World* w, int tavern_id)
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
     b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
 
-    snprintf(buf, sizeof(buf), "Someone puked all over tavern #%d.", tavern_id);
+    tavern_snprintf(buf, sizeof(buf), "Someone puked all over tavern #%d.", tavern_id);
     log_message(&w->log, buf, LOG_INFO);
 }
 
@@ -361,7 +364,7 @@ static void ai_handle_steal(Tavern* b, World* w, int tavern_id)
 
     handle_steal(choice + 1, b, w);
 
-    snprintf(buf, sizeof(buf), "A thief tried their luck at tavern #%d.", tavern_id);
+    tavern_snprintf(buf, sizeof(buf), "A thief tried their luck at tavern #%d.", tavern_id);
     log_message(&w->log, buf, LOG_INFO);
 }
 

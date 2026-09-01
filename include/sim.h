@@ -20,6 +20,7 @@
 #include "fruit.h"
 #include "wine.h"
 #include "animals.h"
+#include "compat.h"
 #include <math.h>
 
 #define CLAMP(x,a,b) ((x)<(a)?(a):((x)>(b)?(b):(x)))
@@ -111,7 +112,7 @@ typedef enum {
     ACT_MAKE_WINE,
     ACT_HIRE_EMPLOYEES,
     ACT_EXPAND_TAVERN,
-    ACT_WATER_BOWL_OUTSIDE, /* makes cats drink it, making their thirst go away */
+    ACT_WATER_BOWL_OUTSIDE /* makes cats drink it, making their thirst go away */
 } Action;
 
 /* Compute reputation from quality, rumor, consistency, handsomeness */

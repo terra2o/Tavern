@@ -92,25 +92,28 @@ int color_for_severity(LogSeverity s)
     return 0;
 }
 
-void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset) 
+void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset)
 {
     int log_height = get_log_height(max_y);
     int start_y = max_y - log_height;
-
-    // separator
-    for (int x = 0; x < max_x; x++)
-        mvaddch(start_y, x, ACS_HLINE);
-
     int lines_to_show = log_height - 1;
     int start = log->count - lines_to_show - scroll_offset;
-    if (start < 0) start = 0;
     int max_start = log->count - lines_to_show;
+    int y;
+    int x;
+    int i;
+
+    /* separator */
+    for (x = 0; x < max_x; x++)
+        mvaddch(start_y, x, ACS_HLINE);
+
+    if (start < 0) start = 0;
     if (max_start < 0) max_start = 0;
     if (start > max_start) start = max_start;
 
-    int y = start_y + 1;
+    y = start_y + 1;
 
-    for (int i = start; i < log->count && y < max_y; i++) {
+    for (i = start; i < log->count && y < max_y; i++) {
         attron(COLOR_PAIR(log->lines[i].color_pair));
         mvprintw(y++, 2, "%.*s", max_x - 4, log->lines[i].text);
         attroff(COLOR_PAIR(log->lines[i].color_pair));
@@ -122,7 +125,7 @@ void init_colors(void)
     start_color();
 #ifdef TAVERN_DEFAULT_COLORS
     use_default_colors();
-#endif // TAVERN_DEFAULT_COLORS
+#endif /* TAVERN_DEFAULT_COLORS */
     init_pair(COLOR_MONEY, COLOR_GREEN, -1);
     init_pair(COLOR_WARNING, COLOR_RED, -1);
     init_pair(COLOR_YELLOW, COLOR_YELLOW, -1);
@@ -138,23 +141,25 @@ void string_array_clear(void)
 
 static void draw_box_border(int box_x, int box_y, int box_w, int box_h)
 {
+    int x, y;
+
     mvaddch(box_y, box_x, ACS_ULCORNER);
     mvaddch(box_y, box_x + box_w - 1, ACS_URCORNER);
     mvaddch(box_y + box_h - 1, box_x, ACS_LLCORNER);
     mvaddch(box_y + box_h - 1, box_x + box_w - 1, ACS_LRCORNER);
 
-    for (int x = box_x + 1; x < box_x + box_w - 1; x++) {
+    for (x = box_x + 1; x < box_x + box_w - 1; x++) {
         mvaddch(box_y, x, ACS_HLINE);
         mvaddch(box_y + box_h - 1, x, ACS_HLINE);
     }
-    for (int y = box_y + 1; y < box_y + box_h - 1; y++) {
+    for (y = box_y + 1; y < box_y + box_h - 1; y++) {
         mvaddch(y, box_x, ACS_VLINE);
         mvaddch(y, box_x + box_w - 1, ACS_VLINE);
     }
 
     /* Clear interior */
-    for (int y = box_y + 1; y < box_y + box_h - 1; y++)
-        for (int x = box_x + 1; x < box_x + box_w - 1; x++)
+    for (y = box_y + 1; y < box_y + box_h - 1; y++)
+        for (x = box_x + 1; x < box_x + box_w - 1; x++)
             mvaddch(y, x, ' ');
 }
 
@@ -166,6 +171,7 @@ void draw_centered_box(int box_w,
 {
     int box_x = (max_x - box_w) / 2;
     int box_y = (max_y - get_log_height(max_y) - box_h) / 2;
+    int i;
 
     draw_box_border(box_x, box_y, box_w, box_h);
 
@@ -173,7 +179,7 @@ void draw_centered_box(int box_w,
     mvprintw(box_y + 1, box_x + 2, "%s", title);
     attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
 
-    for (int i = 0; i < string_array_count; i++)
+    for (i = 0; i < string_array_count; i++)
         mvprintw(box_y + 3 + i, box_x + 2, "%.*s", box_w - 4, string_array[i]);
 
     string_array_clear();
@@ -182,29 +188,47 @@ void draw_centered_box(int box_w,
 void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, Kingdom *k, World *w, UiState* ui_state, WarState* war)
 {
     int max_x, max_y;
+    int usable_height;
+    int left_width;
+    int right_start;
+    int left_col2_x;
+    int left_panel_y;
+    int color;
+    int total_wine;
+    float inf_pct;
+    int inf_color;
+    int cat_alive, cat_drunk;
+    int days_since_bowl;
+    float avg_thirst, avg_addiction, avg_anger;
+    int right_width;
+    int right_col2_x;
+    int i;
+    int d;
+    int y;
+
     getmaxyx(stdscr, max_y, max_x);
-    int usable_height = max_y - get_log_height(max_y);
+    usable_height = max_y - get_log_height(max_y);
 
     erase();
 
-    int left_width = max_x / 2 - 1;
-    int right_start = left_width + 1;
+    left_width = max_x / 2 - 1;
+    right_start = left_width + 1;
 
     /* --- LEFT PANEL: Status --- */
     /* Two inner columns keep this panel compact as more stats get added. */
-    int left_col2_x = left_width / 2 + 1;
-    int left_panel_y = 0; // increment this everytime there's a new ROW (each row holds 2 stats)
+    left_col2_x = left_width / 2 + 1;
+    left_panel_y = 0; /* increment this everytime there's a new ROW (each row holds 2 stats) */
 
     attron(A_BOLD);
     mvprintw(left_panel_y, 2, "DAY %d", day);
     attroff(A_BOLD);
 
-    int color = (b->money >= 0) ? COLOR_MONEY : COLOR_WARNING;
+    color = (b->money >= 0) ? COLOR_MONEY : COLOR_WARNING;
     attron(COLOR_PAIR(color));
     mvprintw(left_panel_y, left_col2_x, "Money: $%.2f", b->money);
     attroff(COLOR_PAIR(color));
 
-    int total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount + b->drinks[DRINK_WINE_GRAPE].inventory.amount;
+    total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount + b->drinks[DRINK_WINE_GRAPE].inventory.amount;
     mvprintw(++left_panel_y, 2, "Ale: %d mugs ($%.2f)", b->drinks[DRINK_ALE].inventory.amount, b->drinks[DRINK_ALE].price);
     mvprintw(left_panel_y, left_col2_x, "Total Wine: %d", total_wine);
 
@@ -228,20 +252,18 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, K
 
     mvprintw(++left_panel_y, 2, "Pathway dirt: %d/7", (w->day - b->last_pathway_clean_day));
 
-    float inf_pct = (k->inflation_rate - 1.0f) * 100.0f;
-    int inf_color = (inf_pct >= 25.0f) ? COLOR_WARNING : (inf_pct >= 10.0f) ? COLOR_YELLOW : COLOR_NORMAL;
+    inf_pct = (k->inflation_rate - 1.0f) * 100.0f;
+    inf_color = (inf_pct >= 25.0f) ? COLOR_WARNING : (inf_pct >= 10.0f) ? COLOR_YELLOW : COLOR_NORMAL;
     attron(COLOR_PAIR(inf_color));
     mvprintw(left_panel_y, left_col2_x, "Inflation: +%.1f%%", inf_pct);
     attroff(COLOR_PAIR(inf_color));
 
-    int cat_alive, cat_drunk;
     animals_stats(&t->cats, &cat_alive, &cat_drunk);
-    int days_since_bowl = w->day - b->last_water_bowl_day;
+    days_since_bowl = w->day - b->last_water_bowl_day;
     mvprintw(++left_panel_y, 2, "Water bowl: %s",
              (b->is_water_bowl_outside && days_since_bowl < 3) ? "fresh" : "dry/none");
     mvprintw(left_panel_y, left_col2_x, "Cats: %d (%d drunk)", cat_alive, cat_drunk);
 
-    float avg_thirst, avg_addiction, avg_anger;
     population_stats(&t->population, &avg_thirst, &avg_addiction, &avg_anger);
     mvprintw(++left_panel_y, 2, "Town thirst: %.0f%%", avg_thirst * 100.0f);
     mvprintw(left_panel_y, left_col2_x, "Town addiction: %.0f%%", avg_addiction * 100.0f);
@@ -257,13 +279,13 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, K
     }
 
     /* Draw left panel border */
-    for (int y = 0; y < usable_height; y++)
+    for (y = 0; y < usable_height; y++)
         mvaddch(y, left_width, ACS_VLINE);
 
     /* --- RIGHT PANEL: Actions --- */
     /* Same two-inner-column treatment as the left panel. */
-    int right_width = max_x - right_start;
-    int right_col2_x = right_start + right_width / 2;
+    right_width = max_x - right_start;
+    right_col2_x = right_start + right_width / 2;
 
     attron(A_BOLD);
     mvprintw(0, right_start + 2, "ACTIONS (%d/%d)", action_num, actions_per_day);
@@ -415,20 +437,20 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, K
         string_array_count = 0;
         PUSH_STR(string_array, string_array_count, "UP/DOWN to pick, ENTER to switch, ESC to cancel.");
         PUSH_STR(string_array, string_array_count, "");
-        for (int i = 0; i < t->merchant_count; i++) {
+        for (i = 0; i < t->merchant_count; i++) {
             const Merchant* m = &t->merchants[i];
             char line[160];
             char marker = (i == ui_state->supplier.selected) ? '>' : ' ';
             char current = (i == b->supplier_id) ? '*' : ' ';
-            int off = snprintf(line, sizeof(line), "%c%c #%d  qual %.2f  risk %.2f",
+            int off = tavern_snprintf(line, sizeof(line), "%c%c #%d  qual %.2f  risk %.2f",
                                 marker, current, i, m->quality, m->instability);
-            for (int d = 0; d < DRINK_COUNT && off < (int)sizeof(line); d++) {
-                off += snprintf(line + off, sizeof(line) - off, "  %s $%.2f (stock %d)",
+            for (d = 0; d < DRINK_COUNT && off < (int)sizeof(line); d++) {
+                off += tavern_snprintf(line + off, sizeof(line) - off, "  %s $%.2f (stock %d)",
                                  DRINK_NAMES[d], merchant_quote_price(m, b->id, d),
                                  merchant_available_stock(m, d));
             }
             if (off < (int)sizeof(line))
-                snprintf(line + off, sizeof(line) - off, "  favor %.2f", m->tavern_favor[b->id]);
+                tavern_snprintf(line + off, sizeof(line) - off, "  favor %.2f", m->tavern_favor[b->id]);
             PUSH_STR(string_array, string_array_count, line);
         }
         draw_centered_box(max_x - 2, 8 + t->merchant_count, max_x, max_y, "SUPPLIERS  (* = current)");
@@ -448,9 +470,9 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t, K
         string_array_count = 0;
         PUSH_STR(string_array, string_array_count, "ESC to close.");
         PUSH_STR(string_array, string_array_count, "");
-        for (int d = 0; d < DRINK_COUNT; d++) {
+        for (d = 0; d < DRINK_COUNT; d++) {
             char line[96];
-            snprintf(line, sizeof(line), "%-12s $%.2f  (%d in stock)",
+            tavern_snprintf(line, sizeof(line), "%-12s $%.2f  (%d in stock)",
                      DRINK_NAMES[d], b->drinks[d].price, b->drinks[d].inventory.amount);
             PUSH_STR(string_array, string_array_count, line);
         }
@@ -474,27 +496,31 @@ void draw_collecting_game(Tavern* b, UiState* ui_state)
 {
     CollectState* s = &ui_state->collect;
     int max_x, max_y;
+    int box_w, box_h, box_x, box_y;
+    char title[64];
+    int i;
+
     getmaxyx(stdscr, max_y, max_x);
 
     collect_tick(s);
 
-    int box_w = s->width + 2;
-    int box_h = s->height + 2;
-    int box_x = (max_x - box_w) / 2;
-    int box_y = (max_y - get_log_height(max_y) - box_h) / 2;
+    box_w = s->width + 2;
+    box_h = s->height + 2;
+    box_x = (max_x - box_w) / 2;
+    box_y = (max_y - get_log_height(max_y) - box_h) / 2;
 
     draw_box_border(box_x, box_y, box_w, box_h);
 
-    char title[64];
-    snprintf(title, sizeof(title), "COLLECT FRUITS (%d/%d)", s->collected_count, COLLECT_MAX_FRUITS);
+    tavern_snprintf(title, sizeof(title), "COLLECT FRUITS (%d/%d)", s->collected_count, COLLECT_MAX_FRUITS);
     attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
     mvprintw(box_y, box_x + 2, "%s", title);
     attroff(A_BOLD | COLOR_PAIR(COLOR_WARNING));
 
-    for (int i = 0; i < s->spawned_total; i++) {
+    for (i = 0; i < s->spawned_total; i++) {
         CollectFruit* f = &s->fruits[i];
+        char glyph;
         if (!f->active) continue;
-        char glyph = (f->type == FRUIT_APPLE) ? APPLE : GRAPE;
+        glyph = (f->type == FRUIT_APPLE) ? APPLE : GRAPE;
         mvaddch(box_y + 1 + f->y, box_x + 1 + f->x, glyph);
     }
 
@@ -525,15 +551,18 @@ void ui_start_number_input(UiState* ui_state, const char* prompt,
 static void ui_handle_number_input(int ch, UiState* ui_state, World* w)
 {
     int max_x, max_y;
+    int max_scroll;
+    NumberInputState* ni;
+
     getmaxyx(stdscr, max_y, max_x);
     (void)max_x;
-    int max_scroll = w->log.count - (get_log_height(max_y) - 1);
+    max_scroll = w->log.count - (get_log_height(max_y) - 1);
     if (max_scroll < 0) max_scroll = 0;
 
     if (ui_state->log_scroll_offset > max_scroll)
         ui_state->log_scroll_offset = max_scroll;
 
-    NumberInputState* ni = &ui_state->number_input;
+    ni = &ui_state->number_input;
 
     if (ch == 27) { /* ESC */
         ni->is_confirmed = -1; /* cancelled */
@@ -597,8 +626,8 @@ static void ui_handle_number_input(int ch, UiState* ui_state, World* w)
 
 static void ui_handle_fight(int ch, UiState* ui_state, Tavern* b, World* w)
 {
-    // NOTE: maybe i should refactor this? or ui.c in general because
-    // i don't want logic in ui.c
+    /* NOTE: maybe i should refactor this? or ui.c in general because
+       i don't want logic in ui.c */
     switch (ch) {
     case '1':
         if (b->money >= 50.0f) {
@@ -738,7 +767,7 @@ static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, Town* t, Wo
             char buf[128];
             b->supplier_id = s->selected;
             b->supplier = &t->merchants[s->selected];
-            snprintf(buf, sizeof(buf), "Switched suppliers to merchant #%d.", s->selected);
+            tavern_snprintf(buf, sizeof(buf), "Switched suppliers to merchant #%d.", s->selected);
             log_message(&w->log, buf, LOG_INFO);
         }
         ui_state->mode = UI_MODE_NORMAL;
@@ -750,6 +779,8 @@ static void ui_handle_supplier(int ch, UiState* ui_state, Tavern* b, Town* t, Wo
    input, since which prompt/price applies depends on the variety. */
 static void ui_handle_wine_variety(int ch, UiState* ui_state, Tavern* b, World* w)
 {
+    const char* wine_name;
+
     (void)b;
     (void)w;
 
@@ -765,14 +796,14 @@ static void ui_handle_wine_variety(int ch, UiState* ui_state, Tavern* b, World* 
     else
         return;
 
-    const char* wine_name = DRINK_NAMES[WINE_TO_DRINK(ui_state->pending_wine)];
+    wine_name = DRINK_NAMES[WINE_TO_DRINK(ui_state->pending_wine)];
 
     if (ui_state->pending_action == ACT_BUY_WINE) {
-        snprintf(ui_state->wine_prompt_buf, sizeof(ui_state->wine_prompt_buf),
+        tavern_snprintf(ui_state->wine_prompt_buf, sizeof(ui_state->wine_prompt_buf),
                  "Buy how many glasses of %s? ", wine_name);
         ui_start_number_input(ui_state, ui_state->wine_prompt_buf, 1, 10000, 0);
     } else if (ui_state->pending_action == ACT_ADJUST_WINE_PRICE) {
-        snprintf(ui_state->wine_prompt_buf, sizeof(ui_state->wine_prompt_buf),
+        tavern_snprintf(ui_state->wine_prompt_buf, sizeof(ui_state->wine_prompt_buf),
                  "New %s price (e.g. 125.00): ", wine_name);
         ui_start_number_input(ui_state, ui_state->wine_prompt_buf, 0.1f, 500.0f, 1);
     }
@@ -792,9 +823,11 @@ static void ui_handle_detail(int ch, UiState* ui_state)
 void ui_handle_input(int ch, UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World* w)
 {
     int max_x, max_y;
+    int max_scroll;
+
     getmaxyx(stdscr, max_y, max_x);
     (void)max_x;
-    int max_scroll = w->log.count - (get_log_height(max_y) - 1);
+    max_scroll = w->log.count - (get_log_height(max_y) - 1);
     if (max_scroll < 0) max_scroll = 0;
 
     if (ui_state->log_scroll_offset > max_scroll)
@@ -854,7 +887,9 @@ static const ActionInputSpec ACTION_INPUT_SPECS[] = {
 
 const ActionInputSpec* find_action_input_spec(Action a)
 {
-    for (size_t i = 0; i < sizeof(ACTION_INPUT_SPECS) / sizeof(ACTION_INPUT_SPECS[0]); i++) {
+    size_t i;
+
+    for (i = 0; i < sizeof(ACTION_INPUT_SPECS) / sizeof(ACTION_INPUT_SPECS[0]); i++) {
         if (ACTION_INPUT_SPECS[i].action == a)
             return &ACTION_INPUT_SPECS[i];
     }
@@ -891,10 +926,12 @@ static const struct { int key; Action action; } ACTION_KEYS[] = {
 /* Convert a character to an action (only valid in NORMAL mode) */
 Action read_action(int ch)
 {
+    size_t i;
+
     if (ch == 'q' || ch == 'Q')
         return (Action)-1; /* Signal to quit */
 
-    for (size_t i = 0; i < sizeof(ACTION_KEYS) / sizeof(ACTION_KEYS[0]); i++) {
+    for (i = 0; i < sizeof(ACTION_KEYS) / sizeof(ACTION_KEYS[0]); i++) {
         if (ACTION_KEYS[i].key == ch)
             return ACTION_KEYS[i].action;
     }
@@ -905,20 +942,24 @@ Action read_action(int ch)
 /* Process a confirmed action with its parameter */
 void ui_process_action(UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World* w)
 {
+    int input_value;
+    int was_cancelled;
+
     if (ui_state->number_input.is_confirmed == 0)
         return;
 
-    int input_value = ui_state->number_input.result;
-    int was_cancelled = (ui_state->number_input.is_confirmed == -1);
+    input_value = ui_state->number_input.result;
+    was_cancelled = (ui_state->number_input.is_confirmed == -1);
 
     if (!was_cancelled) {
         switch (ui_state->pending_action) {
             case ACT_ADJUST_ALE_PRICE:
             {
                 float fval = ui_state->number_input.float_result;
-                b->drinks[DRINK_ALE].price = CLAMP(fval, 0.1f, 500.0f);
                 char buf[128];
-                snprintf(buf, sizeof(buf), "Price adjusted to $%.2f", b->drinks[DRINK_ALE].price);
+
+                b->drinks[DRINK_ALE].price = CLAMP(fval, 0.1f, 500.0f);
+                tavern_snprintf(buf, sizeof(buf), "Price adjusted to $%.2f", b->drinks[DRINK_ALE].price);
                 log_message(&w->log, buf, LOG_INFO);
                 break;
             }
@@ -926,17 +967,19 @@ void ui_process_action(UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World*
             {
                 DrinkType dt = WINE_TO_DRINK(ui_state->pending_wine);
                 float fval = ui_state->number_input.float_result;
-                b->drinks[dt].price = CLAMP(fval, 0.1f, 500.0f);
                 char buf[128];
-                snprintf(buf, sizeof(buf), "%s price adjusted to $%.2f", DRINK_NAMES[dt], b->drinks[dt].price);
+
+                b->drinks[dt].price = CLAMP(fval, 0.1f, 500.0f);
+                tavern_snprintf(buf, sizeof(buf), "%s price adjusted to $%.2f", DRINK_NAMES[dt], b->drinks[dt].price);
                 log_message(&w->log, buf, LOG_INFO);
                 break;
             }
             case ACT_ADVERTISE:
             {
-                apply_action(b, ACT_ADVERTISE, t, k, w, input_value);
                 char buf[128];
-                snprintf(buf, sizeof(buf), "Advertised with budget $%d", input_value);
+
+                apply_action(b, ACT_ADVERTISE, t, k, w, input_value);
+                tavern_snprintf(buf, sizeof(buf), "Advertised with budget $%d", input_value);
                 log_message(&w->log, buf, LOG_INFO);
                 break;
             }
@@ -946,13 +989,14 @@ void ui_process_action(UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World*
                 int in_stock = merchant_available_stock(b->supplier, DRINK_ALE);
                 float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_ALE);
                 int want = input_value < in_stock ? input_value : in_stock;
+                float cost;
 
                 if (want <= 0) {
                     log_message(&w->log, "The merchant is out of ale today.", LOG_INFO);
                     break;
                 }
 
-                float cost = want * unit_price;
+                cost = want * unit_price;
 
                 if (b->money < cost) {
                     int affordable = (int)(b->money / unit_price);
@@ -960,24 +1004,26 @@ void ui_process_action(UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World*
                     if (affordable <= 0)
                         log_message(&w->log, "Cannot afford any ale.", LOG_INFO);
                     else {
+                        char buf[128];
+
                         b->money -= affordable * unit_price;
                         b->drinks[DRINK_ALE].inventory.amount += affordable;
                         tavern_recompute_total_inventory(b);
                         merchant_record_purchase(b->supplier, b->id, DRINK_ALE, affordable);
 
-                        char buf[128];
-                        snprintf(buf, sizeof(buf), "Bought %d mugs", affordable);
+                        tavern_snprintf(buf, sizeof(buf), "Bought %d mugs", affordable);
                         log_message(&w->log, buf, LOG_INFO);
                     }
                 }
                 else {
+                    char buf[128];
+
                     b->money -= cost;
                     b->drinks[DRINK_ALE].inventory.amount += want;
                     tavern_recompute_total_inventory(b);
                     merchant_record_purchase(b->supplier, b->id, DRINK_ALE, want);
 
-                    char buf[128];
-                    snprintf(buf, sizeof(buf),
+                    tavern_snprintf(buf, sizeof(buf),
                              "Bought %d mugs for $%.2f",
                              want, cost);
                     log_message(&w->log, buf, LOG_INFO);
@@ -992,43 +1038,46 @@ void ui_process_action(UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World*
                 int in_stock = merchant_available_stock(b->supplier, dt);
                 float unit_price = merchant_quote_price(b->supplier, b->id, dt);
                 int want = input_value < in_stock ? input_value : in_stock;
+                float cost;
 
                 if (want <= 0) {
                     char buf[128];
-                    snprintf(buf, sizeof(buf), "The merchant is out of %s today.", name);
+                    tavern_snprintf(buf, sizeof(buf), "The merchant is out of %s today.", name);
                     log_message(&w->log, buf, LOG_INFO);
                     break;
                 }
 
-                float cost = want * unit_price;
+                cost = want * unit_price;
 
                 if (b->money < cost) {
                     int affordable = (int)(b->money / unit_price);
                     if (affordable > want) affordable = want;
                     if (affordable <= 0) {
                         char buf[128];
-                        snprintf(buf, sizeof(buf), "Cannot afford any %s.", name);
+                        tavern_snprintf(buf, sizeof(buf), "Cannot afford any %s.", name);
                         log_message(&w->log, buf, LOG_INFO);
                     }
                     else {
+                        char buf[128];
+
                         b->money -= affordable * unit_price;
                         b->drinks[dt].inventory.amount += affordable;
                         tavern_recompute_total_inventory(b);
                         merchant_record_purchase(b->supplier, b->id, dt, affordable);
 
-                        char buf[128];
-                        snprintf(buf, sizeof(buf), "Bought %d glasses of %s", affordable, name);
+                        tavern_snprintf(buf, sizeof(buf), "Bought %d glasses of %s", affordable, name);
                         log_message(&w->log, buf, LOG_INFO);
                     }
                 }
                 else {
+                    char buf[128];
+
                     b->money -= cost;
                     b->drinks[dt].inventory.amount += want;
                     tavern_recompute_total_inventory(b);
                     merchant_record_purchase(b->supplier, b->id, dt, want);
 
-                    char buf[128];
-                    snprintf(buf, sizeof(buf),
+                    tavern_snprintf(buf, sizeof(buf),
                              "Bought %d glasses of %s for $%.2f",
                              want, name, cost);
                     log_message(&w->log, buf, LOG_INFO);
