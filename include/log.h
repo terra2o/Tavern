@@ -1,12 +1,12 @@
 /*
-*
-* log.h for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * log.h for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
 #ifndef LOG_H
 #define LOG_H
@@ -15,19 +15,19 @@
 #define LOG_LINES 100
 #define LOG_LINE_LEN 128
 
-typedef enum LogSeverity
-{
-    LOG_INFO, LOG_IMPORTANT, LOG_WARN, LOG_ERROR
+typedef enum LogSeverity {
+    LOG_INFO,
+    LOG_IMPORTANT,
+    LOG_WARN,
+    LOG_ERROR
 } LogSeverity;
 
-typedef struct LogLine
-{
+typedef struct LogLine {
     char text[LOG_LINE_LEN];
     int color_pair;
 } LogLine;
 
-typedef struct MessageLog
-{
+typedef struct MessageLog {
     LogLine lines[LOG_LINES];
     int count;
 } MessageLog;

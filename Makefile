@@ -50,7 +50,8 @@ SRC := \
 	src/event.c \
 	src/collect_game.c \
 	src/animals.c \
-	src/compat.c
+	src/compat.c \
+	src/employee.c
 
 OBJ := $(SRC:.c=.o)
 

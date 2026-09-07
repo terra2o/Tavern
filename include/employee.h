@@ -1,27 +1,27 @@
 /*
-*
-* employee.h for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * employee.h for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
 #ifndef EMPLOYEE_H
 #define EMPLOYEE_H
+
+#define BASE_BARTENDER_WAGE 60.0f
+#define BASE_WAITER_WAGE 40.0f
+#define BASE_COOK_WAGE 55.0f
+#define BASE_CLEANER_WAGE 35.0f
 
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 typedef signed char int8_t;
 
-typedef enum Role {
-    ROLE_BARTENDER,
-    ROLE_WAITER,
-    ROLE_COOK,
-    ROLE_CLEANER
-} Role;
+typedef enum Role { ROLE_BARTENDER, ROLE_WAITER, ROLE_COOK, ROLE_CLEANER } Role;
 
 typedef struct EmployeeStats {
     uint8_t speed;
@@ -40,7 +40,8 @@ typedef struct Employee {
     int on_duty;
 } Employee;
 
-void employee_init(Employee *emp, uint32_t id, const char *name, Role role, uint32_t wage_cents);
+void employee_init(Employee *emp, uint32_t id, const char *name, Role role,
+                   uint32_t wage_cents);
 
 void employee_set_role(Employee *emp, Role new_role);
 void employee_set_wage(Employee *emp, uint32_t new_wage);
@@ -51,4 +52,16 @@ void employee_rest(Employee *emp, uint8_t amount);
 void employee_adjust_morale(Employee *emp, int8_t delta);
 void employee_tick_shift(Employee *emp);
 
-#endif
+struct Tavern;
+struct MessageLog;
+
+int employee_get_bartender_capacity(const struct Tavern *b);
+int employee_get_waiter_capacity(const struct Tavern *b);
+void employee_cleaners_work(struct Tavern *b, int current_day,
+                            struct MessageLog *log);
+void employee_cooks_work(struct Tavern *b, struct MessageLog *log);
+
+int employee_fire(struct Tavern *b, Employee *emp);
+int employee_fire_by_id(struct Tavern *b, uint32_t id);
+
+#endif /* EMPLOYEE_H */

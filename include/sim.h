@@ -1,38 +1,42 @@
 /*
-*
-* sim.h for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * sim.h for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
 #ifndef SIM_H
 #define SIM_H
 
-#include "merchant.h"
-#include "log.h"
-#include "game_state.h"
-#include "town.h"
-#include "kingdom.h"
-#include "drink.h"
-#include "fruit.h"
-#include "wine.h"
 #include "animals.h"
 #include "compat.h"
+#include "drink.h"
+#include "employee.h"
+#include "food.h"
+#include "fruit.h"
+#include "game_state.h"
+#include "kingdom.h"
+#include "log.h"
+#include "merchant.h"
+#include "town.h"
+#include "wine.h"
 #include <math.h>
 
-#define CLAMP(x,a,b) ((x)<(a)?(a):((x)>(b)?(b):(x)))
+#define CLAMP(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 
 #define EMPLOYEES_PER_TAVERN_SIZE 4
+#define MAX_EMPLOYEES EMPLOYEES_PER_TAVERN_SIZE * 2
 #define TAVERN_EXPAND_BASE_COST 2000.0f
 
 typedef struct PeriodicPayment {
     int pay_period;
     int next_payment_day;
     float rent_amount;
-    float base_rent; /* Original rent at game start; actual charge = base_rent * inflation_rate */
+    float base_rent; /* Original rent at game start; actual charge = base_rent *
+                        inflation_rate */
     int next_wage_day;
 } PeriodicPayment;
 
@@ -47,6 +51,7 @@ typedef struct Tavern {
     int total_inventory;
     Drink drinks[DRINK_COUNT];
     Fruit fruits[FRUIT_COUNT];
+    Food foods[FOOD_COUNT];
 
     float quality_actual;
     float quality_perceived;
@@ -69,8 +74,8 @@ typedef struct Tavern {
     /* actions start at 2 per day, having more employees make it higher
        each employee increments by 1, e.g. having 1 employee would result
        in 3 actions per day */
-    int employees;
-    float employees_wage;
+    Employee *employees;
+    int employee_count;
     /* player must increase this if they hit the employee "limit",
      * having 1 tavern_size is the default and means you can't have
      * more than 4 employees, and if you had 2, you can have 8 employees*/
@@ -80,7 +85,7 @@ typedef struct Tavern {
        re-pointing after the merchant pool is (re)allocated); supplier
        is a cached pointer into World.merchants for fast access. */
     int supplier_id;
-    Merchant* supplier;
+    Merchant *supplier;
     int is_water_bowl_outside; /* bool */
     int last_water_bowl_day;
 } Tavern;
@@ -89,12 +94,14 @@ typedef struct {
     int customers;
     int sales[DRINK_COUNT];
     int demand[DRINK_COUNT];
+    int food_sales[FOOD_COUNT];
     float revenue;
 
     /* Who showed up, for event triggers: counts of visitors whose own
        stats make trouble more likely, not a die roll. */
-    int rowdy_visitors;      /* anger above ROWDY_ANGER_THRESHOLD */
-    int destitute_visitors;  /* homeless, or wealth below DESTITUTE_WEALTH_THRESHOLD */
+    int rowdy_visitors;     /* anger above ROWDY_ANGER_THRESHOLD */
+    int destitute_visitors; /* homeless, or wealth below
+                               DESTITUTE_WEALTH_THRESHOLD */
 } DayResult;
 
 typedef enum {
@@ -112,30 +119,37 @@ typedef enum {
     ACT_MAKE_WINE,
     ACT_HIRE_EMPLOYEES,
     ACT_EXPAND_TAVERN,
-    ACT_WATER_BOWL_OUTSIDE /* makes cats drink it, making their thirst go away */
+    ACT_WATER_BOWL_OUTSIDE /* makes cats drink it, making their thirst go away
+                            */
 } Action;
 
 /* Compute reputation from quality, rumor, consistency, handsomeness */
-float compute_reputation(Tavern* b);
+float compute_reputation(Tavern *b);
 
 /* Base actions per day plus one per employee */
-int tavern_actions_per_day(const Tavern* b);
+int tavern_actions_per_day(const Tavern *b);
+
+/* time allocation helpers for 24-hour day */
+int tavern_action_start_minute(int action_num, int total_actions);
+int tavern_action_end_minute(int action_num, int total_actions);
+float tavern_action_duration_hours(int total_actions);
 
 /* Recomputes b->total_inventory as the sum of every drink's amount.
    Call after any purchase/sale/crafting that changes drinks[].amount. */
-void tavern_recompute_total_inventory(Tavern* b);
+void tavern_recompute_total_inventory(Tavern *b);
 
 /* Apply an action to the tavern state. t is b's own town (population,
    last_advertised_day); k is b's own kingdom (inflation_rate, for
    hire/expand cost math). */
-void apply_action(Tavern* b, Action a, Town* t, Kingdom* k, World* w, int amount);
+void apply_action(Tavern *b, Action a, Town *t, Kingdom *k, World *w,
+                  int amount);
 
 /* Charges b->rent if due. k is b's own kingdom, for inflation_rate. */
-void process_payment(Kingdom* k, World* w, Tavern* b, int current_day);
+void process_payment(Kingdom *k, World *w, Tavern *b, int current_day);
 
 /* Simulate one day for every tavern in every town in every kingdom
    (player's and AI rivals alike). Returns the player's tavern's total
    drinks sold. */
-int simulate_day(World* w);
+int simulate_day(World *w);
 
 #endif /* SIM_H */

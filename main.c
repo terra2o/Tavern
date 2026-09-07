@@ -1,24 +1,24 @@
 /*
-*
-* main.c for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * main.c for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
-#include <stdlib.h>
-#include <time.h>
-#include <curses.h>
-#include <string.h>
-#include "include/game_state.h"
-#include "include/sim.h"
-#include "include/log.h"
-#include "include/ui.h"
-#include "include/save.h"
 #include "include/event.h"
+#include "include/game_state.h"
+#include "include/log.h"
+#include "include/save.h"
+#include "include/sim.h"
+#include "include/ui.h"
 #include "include/version.h"
+#include <curses.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -31,8 +31,10 @@
    don't exist in XP's kernel32.dll. Linking against them directly makes the
    whole executable fail to load on XP with "procedure entry point ... could
    not be located", so they're resolved dynamically and skipped if absent. */
-typedef BOOL (WINAPI *GetCurrentConsoleFontEx_t)(HANDLE, BOOL, PCONSOLE_FONT_INFOEX);
-typedef BOOL (WINAPI *SetCurrentConsoleFontEx_t)(HANDLE, BOOL, PCONSOLE_FONT_INFOEX);
+typedef BOOL(WINAPI *GetCurrentConsoleFontEx_t)(HANDLE, BOOL,
+                                                PCONSOLE_FONT_INFOEX);
+typedef BOOL(WINAPI *SetCurrentConsoleFontEx_t)(HANDLE, BOOL,
+                                                PCONSOLE_FONT_INFOEX);
 
 static void windows_shrink_console_font(void)
 {
@@ -45,24 +47,26 @@ static void windows_shrink_console_font(void)
     if (!k32)
         return;
 
-    pGetCurrentConsoleFontEx =
-        (GetCurrentConsoleFontEx_t)GetProcAddress(k32, "GetCurrentConsoleFontEx");
-    pSetCurrentConsoleFontEx =
-        (SetCurrentConsoleFontEx_t)GetProcAddress(k32, "SetCurrentConsoleFontEx");
+    pGetCurrentConsoleFontEx = (GetCurrentConsoleFontEx_t)GetProcAddress(
+        k32, "GetCurrentConsoleFontEx");
+    pSetCurrentConsoleFontEx = (SetCurrentConsoleFontEx_t)GetProcAddress(
+        k32, "SetCurrentConsoleFontEx");
     if (!pGetCurrentConsoleFontEx || !pSetCurrentConsoleFontEx)
         return;
 
     con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
-                              FILE_SHARE_READ | FILE_SHARE_WRITE,
-                              NULL, OPEN_EXISTING, 0, NULL);
+                      FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+                      0, NULL);
     if (con == INVALID_HANDLE_VALUE)
         return;
 
     memset(&font, 0, sizeof(font));
     font.cbSize = sizeof(font);
     if (pGetCurrentConsoleFontEx(con, FALSE, &font)) {
-        if (font.dwFontSize.X > 8) font.dwFontSize.X = 8;
-        if (font.dwFontSize.Y > 12) font.dwFontSize.Y = 12;
+        if (font.dwFontSize.X > 8)
+            font.dwFontSize.X = 8;
+        if (font.dwFontSize.Y > 12)
+            font.dwFontSize.Y = 12;
         pSetCurrentConsoleFontEx(con, FALSE, &font);
     }
 
@@ -85,8 +89,8 @@ static void windows_grow_console_buffer(void)
     CONSOLE_SCREEN_BUFFER_INFO csbi;
 
     con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
-                              FILE_SHARE_READ | FILE_SHARE_WRITE,
-                              NULL, OPEN_EXISTING, 0, NULL);
+                      FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+                      0, NULL);
     if (con == INVALID_HANDLE_VALUE)
         return;
 
@@ -94,8 +98,10 @@ static void windows_grow_console_buffer(void)
         COORD size = GetLargestConsoleWindowSize(con);
         SHORT win_x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
         SHORT win_y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-        if (size.X < win_x) size.X = win_x;
-        if (size.Y < win_y) size.Y = win_y;
+        if (size.X < win_x)
+            size.X = win_x;
+        if (size.Y < win_y)
+            size.Y = win_y;
 
         /* SetConsoleScreenBufferSize() makes the console enqueue a fresh
            WINDOW_BUFFER_SIZE_EVENT even when called with the size it
@@ -136,8 +142,8 @@ static int windows_console_size_changed(void)
     int win_x, win_y;
 
     con = CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE,
-                              FILE_SHARE_READ | FILE_SHARE_WRITE,
-                              NULL, OPEN_EXISTING, 0, NULL);
+                      FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+                      0, NULL);
     if (con == INVALID_HANDLE_VALUE)
         return 1;
 
@@ -192,7 +198,9 @@ static void windows_disable_quick_edit(void)
 }
 #endif
 
-static void event_handler(Tavern* b, Town* t, Kingdom* k, World* w, UiState* ui_state, int actions_per_day, UiMode mode, int* resolved)
+static void event_handler(Tavern *b, Town *t, Kingdom *k, World *w,
+                          UiState *ui_state, int actions_per_day, UiMode mode,
+                          int *resolved)
 {
     w->pending_event = EVENT_NONE;
     ui_state->mode = mode;
@@ -200,7 +208,8 @@ static void event_handler(Tavern* b, Town* t, Kingdom* k, World* w, UiState* ui_
     while (!*resolved) {
         int ch;
 
-        draw_ui(b, w->day, 0, actions_per_day, t, k, w, ui_state, &ui_state->war);
+        draw_ui(b, w->day, 0, actions_per_day, t, k, w, ui_state,
+                &ui_state->war);
         ch = getch();
         napms(16);
 #ifdef _WIN32
@@ -219,7 +228,7 @@ static void event_handler(Tavern* b, Town* t, Kingdom* k, World* w, UiState* ui_
 
 /* Fresh tavern with default starting stats, supplied by merchant_id.
    day is only used to schedule the first rent payment. */
-static Tavern make_starter_tavern(int day, int merchant_id, const Merchant* m)
+static Tavern make_starter_tavern(int day, int merchant_id, const Merchant *m)
 {
     Tavern b = {0};
     b.money = 700.0f;
@@ -236,6 +245,12 @@ static Tavern make_starter_tavern(int day, int merchant_id, const Merchant* m)
     b.fruits[FRUIT_GRAPE].inventory.expiration_date = 30;
     b.fruits[FRUIT_APPLE].inventory.amount = 1;
     b.fruits[FRUIT_GRAPE].inventory.amount = 1;
+    b.foods[FOOD_BREAD].price = 3.0f;
+    b.foods[FOOD_BREAD].inventory.amount = 5;
+    b.foods[FOOD_BREAD].inventory.expiration_date = 30;
+    b.foods[FOOD_STEW].price = 7.5f;
+    b.foods[FOOD_STEW].inventory.amount = 3;
+    b.foods[FOOD_STEW].inventory.expiration_date = 30;
     b.quality_actual = m->quality;
     b.quality_perceived = 0.5f;
     b.rumor = 0.5f;
@@ -249,13 +264,12 @@ static Tavern make_starter_tavern(int day, int merchant_id, const Merchant* m)
     b.rent.rent_amount = 1500;
     b.rent.base_rent = 1500;
     b.rent.next_wage_day = day + b.rent.pay_period;
-    b.employees = 0;
-    b.employees_wage = 500.0f;
+    b.employee_count = 0;
     b.tavern_size = 1;
     return b;
 }
 
-static void init_new_game(World* w)
+static void init_new_game(World *w)
 {
     Kingdom kingdom = {0};
     Town town = {0};
@@ -282,9 +296,11 @@ static void init_new_game(World* w)
     /* Seed a small starting colony - cats_tick() only makes kittens from
        existing mature pairs, so the town needs a handful to start with
        or it would never have any cats at all. */
-    for (i = 0; i < 4; i++) cat_spawn(&town.cats);
+    for (i = 0; i < 4; i++)
+        cat_spawn(&town.cats);
     population_init(&town.population, 100000);
-    for (i = 0; i < 150; i++) citizen_spawn(&town.population);
+    for (i = 0; i < 150; i++)
+        citizen_spawn(&town.population);
 
     m_init.drink_price[DRINK_ALE] = 5.0f;
     m_init.drink_price[DRINK_WINE_APPLE] = 90.0f;
@@ -321,9 +337,9 @@ static void init_new_game(World* w)
 int main(void)
 {
     World w = {0};
-    Kingdom* k;
-    Town* t;
-    Tavern* b;
+    Kingdom *k;
+    Town *t;
+    Tavern *b;
     int game_running;
     char version[64];
     char pool_buf[64];
@@ -364,10 +380,14 @@ int main(void)
     game_running = 1;
     tavern_snprintf(version, sizeof(version), "%s", VERSION_STRING);
     log_message(&w.log, version, LOG_IMPORTANT);
-    log_message(&w.log, "Welcome! Press a key to start the best tavern simulation ever...", LOG_IMPORTANT);
+    log_message(
+        &w.log,
+        "Welcome! Press a key to start the best tavern simulation ever...",
+        LOG_IMPORTANT);
 
-    tavern_snprintf(pool_buf, sizeof(pool_buf), "Taverns in town: %d | Merchants: %d",
-             t->tavern_count, t->merchant_count);
+    tavern_snprintf(pool_buf, sizeof(pool_buf),
+                    "Taverns in town: %d | Merchants: %d", t->tavern_count,
+                    t->merchant_count);
     log_message(&w.log, pool_buf, LOG_INFO);
 
     ui_state_init(&ui_state);
@@ -380,17 +400,18 @@ int main(void)
         int sales;
         int total_wine;
         char buf_l[256];
+        int e;
 
         /* Allow multiple actions per day */
-        for (action_num = 1;
-             action_num <= actions_per_day && game_running;
+        for (action_num = 1; action_num <= actions_per_day && game_running;
              action_num++) {
 
             while (1) {
                 int ch;
                 Action choice;
 
-                draw_ui(b, w.day, action_num, actions_per_day, t, k, &w, &ui_state, &ui_state.war);
+                draw_ui(b, w.day, action_num, actions_per_day, t, k, &w,
+                        &ui_state, &ui_state.war);
 
                 ch = getch();
                 napms(16);
@@ -430,41 +451,58 @@ int main(void)
                 if (choice == (Action)-1) {
                     game_running = 0;
                     break;
-                }
-                else if (choice == (Action)-2)
+                } else if (choice == (Action)-2)
                     continue;
-                else if (choice == ACT_BUY_WINE || choice == ACT_ADJUST_WINE_PRICE) {
+                else if (choice == ACT_BUY_WINE ||
+                         choice == ACT_ADJUST_WINE_PRICE) {
                     ui_state.pending_action = choice;
                     ui_state.mode = UI_MODE_WINE_VARIETY;
-                }
-                else if (find_action_input_spec(choice) != NULL) {
-                    const ActionInputSpec* spec = find_action_input_spec(choice);
+                } else if (find_action_input_spec(choice) != NULL) {
+                    const ActionInputSpec *spec =
+                        find_action_input_spec(choice);
                     ui_state.pending_action = choice;
-                    ui_start_number_input(&ui_state, spec->prompt, spec->min_val, spec->max_val, spec->is_float);
-                }
-                else if (choice == ACT_CLEAN_PATHWAY) {
+                    ui_start_number_input(&ui_state, spec->prompt,
+                                          spec->min_val, spec->max_val,
+                                          spec->is_float);
+                } else if (choice == ACT_CLEAN_PATHWAY) {
                     apply_action(b, choice, t, k, &w, 0);
                     log_message(&w.log, "Cleaned pathway.", LOG_INFO);
                     break;
-                }
-                else if (choice == ACT_COLLECT_FRUIT) {
+                } else if (choice == ACT_COLLECT_FRUIT) {
                     int cmax_x, cmax_y;
                     getmaxyx(stdscr, cmax_y, cmax_x);
                     collect_state_start(&ui_state.collect, cmax_x, cmax_y);
-                    event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_COLLECT, &ui_state.collect.resolved);
+                    event_handler(b, t, k, &w, &ui_state, actions_per_day,
+                                  UI_MODE_COLLECT, &ui_state.collect.resolved);
                     log_message(&w.log, "Went out to pick fruit.", LOG_INFO);
                     break;
-                }
-                else {
+                } else if (choice == ACT_HIRE_EMPLOYEES) {
+                    if (b->employee_count >=
+                        b->tavern_size * EMPLOYEES_PER_TAVERN_SIZE) {
+                        log_message(&w.log,
+                                    "Tavern is at employee capacity! Expand "
+                                    "tavern first.",
+                                    LOG_WARN);
+                    } else {
+                        ui_state.mode = UI_MODE_HIRE_ROLE;
+                    }
+                } else {
                     apply_action(b, choice, t, k, &w, 0);
                     /* hire/expand already log their own outcome (success or
                        failure) inside apply_action, so logging a generic
                        "completed" here would contradict a failure message */
-                    if (choice != ACT_HIRE_EMPLOYEES && choice != ACT_EXPAND_TAVERN)
+                    if (choice != ACT_HIRE_EMPLOYEES &&
+                        choice != ACT_EXPAND_TAVERN)
                         log_message(&w.log, "Action completed.", LOG_INFO);
                     break;
                 }
             }
+
+            if (!game_running)
+                break;
+
+            for (e = 0; e < b->employee_count; e++)
+                employee_tick_shift(&b->employees[e]);
         }
 
         if (!game_running)
@@ -481,34 +519,50 @@ int main(void)
         /* Check if war ends */
         if (k->at_war && w.day >= k->war_end_day) {
             k->at_war = 0;
-            log_message(&w.log, "The war has ended. Peace returns to the land.", LOG_IMPORTANT);
+            log_message(&w.log, "The war has ended. Peace returns to the land.",
+                        LOG_IMPORTANT);
         }
 
         if (w.pending_event == EVENT_FIGHT)
-            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_FIGHT, &ui_state.fight.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day,
+                          UI_MODE_FIGHT, &ui_state.fight.resolved);
         else if (w.pending_event == EVENT_VOMIT)
-            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_VOMIT, &ui_state.vomit.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day,
+                          UI_MODE_VOMIT, &ui_state.vomit.resolved);
         else if (w.pending_event == EVENT_STEAL)
-            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_STEAL, &ui_state.steal.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day,
+                          UI_MODE_STEAL, &ui_state.steal.resolved);
         else if (w.pending_event == EVENT_CAT_TROUBLE)
-            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_CAT_TROUBLE, &ui_state.cat_trouble.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day,
+                          UI_MODE_CAT_TROUBLE, &ui_state.cat_trouble.resolved);
         else if (w.pending_event == EVENT_WAR) {
             ui_state.war.our_kingdom_attack = k->our_kingdom_attack;
-            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR, &ui_state.war.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR,
+                          &ui_state.war.resolved);
         } else if (w.pending_event == EVENT_WAR_SOLDIERS)
-            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR_SOLDIERS, &ui_state.war_soldiers.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day,
+                          UI_MODE_WAR_SOLDIERS,
+                          &ui_state.war_soldiers.resolved);
         else if (w.pending_event == EVENT_WAR_REFUGEES)
-            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR_REFUGEES, &ui_state.war_refugees.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day,
+                          UI_MODE_WAR_REFUGEES,
+                          &ui_state.war_refugees.resolved);
         else if (w.pending_event == EVENT_WAR_ATTACK)
-            event_handler(b, t, k, &w, &ui_state, actions_per_day, UI_MODE_WAR_ATTACK, &ui_state.war_attack.resolved);
+            event_handler(b, t, k, &w, &ui_state, actions_per_day,
+                          UI_MODE_WAR_ATTACK, &ui_state.war_attack.resolved);
 
         save_game(SAVE_PATH, &w);
 
-        total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount + b->drinks[DRINK_WINE_GRAPE].inventory.amount;
+        total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount +
+                     b->drinks[DRINK_WINE_GRAPE].inventory.amount;
         tavern_snprintf(buf_l, sizeof(buf_l),
-                 "End of day %d: %d sales | Money: $%.2f | Ale: %d | Wine: %d | Rep: %.2f",
-                 w.day, sales, b->money, b->drinks[DRINK_ALE].inventory.amount,
-                 total_wine, b->reputation);
+                        "End of day %d: %d sales | Money: $%.2f | Ale: %d | "
+                        "Wine: %d | Bread: %d | Stew: %d | Rep: %.2f",
+                        w.day, sales, b->money,
+                        b->drinks[DRINK_ALE].inventory.amount, total_wine,
+                        b->foods[FOOD_BREAD].inventory.amount,
+                        b->foods[FOOD_STEW].inventory.amount,
+                        b->reputation);
         log_message(&w.log, buf_l, LOG_IMPORTANT);
     }
 

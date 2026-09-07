@@ -38,8 +38,10 @@ Here's a to-do list for this game (The ones with strikethrough are done):
 
 - Employee management
   - [x] employee.h
-  - [ ] make every day 24 hours, divide time spent for each action based on total actions available
-  - [ ] overview board for employees, their stats, wage, etc.
+  - [x] make every day 24 hours, divide time spent for each action based on total actions available
+  - [x] overview board for employees, their stats, wage, etc.
+  - [x] cleaners ocassionally clean, bartenders fill up drinks for customers (if we don't have enough bartenders, then we might not be able to supply drinks to everyone), waiters deliver the drinks, cooks make food (add food)
+- [x] Food (related with employee)
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io

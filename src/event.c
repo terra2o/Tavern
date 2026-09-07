@@ -1,18 +1,18 @@
 /*
-*
-* event.c for "Tavern"
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * event.c for "Tavern"
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
+#include "event.h"
+#include "sim.h"
+#include "sim_random.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "../include/event.h"
-#include "../include/sim.h"
-#include "../include/sim_random.h"
 
 #define FIGHT_MEDICAL_COST 200.0f
 
@@ -25,27 +25,15 @@
 #define STEAL_CHANCE_PER_DESTITUTE 0.06f
 #define STEAL_CHANCE_CAP 0.6f
 
-void event_fight(World* w)
-{
-    w->pending_event = EVENT_FIGHT;
-}
+void event_fight(World *w) { w->pending_event = EVENT_FIGHT; }
 
-void event_vomit(World* w)
-{
-    w->pending_event = EVENT_VOMIT;
-}
+void event_vomit(World *w) { w->pending_event = EVENT_VOMIT; }
 
-void event_steal(World* w)
-{
-    w->pending_event = EVENT_STEAL;
-}
+void event_steal(World *w) { w->pending_event = EVENT_STEAL; }
 
-void event_cat_trouble(World* w)
-{
-    w->pending_event = EVENT_CAT_TROUBLE;
-}
+void event_cat_trouble(World *w) { w->pending_event = EVENT_CAT_TROUBLE; }
 
-void event_war(Kingdom* k, World* w)
+void event_war(Kingdom *k, World *w)
 {
     w->pending_event = EVENT_WAR;
     k->at_war = 1;
@@ -53,11 +41,12 @@ void event_war(Kingdom* k, World* w)
     k->war_end_day = w->day + 30 + rand() % 61; /* war lasts 30-90 days */
 }
 
-void random_war_event(Kingdom* k, World* w)
+void random_war_event(Kingdom *k, World *w)
 {
     int roll;
 
-    if (!k->at_war) return;
+    if (!k->at_war)
+        return;
 
     roll = rand() % 4;
     if (roll == 0)
@@ -69,61 +58,77 @@ void random_war_event(Kingdom* k, World* w)
     /* roll == 3: nothing happens this day */
 }
 
-int event_fight_break_up(Tavern* b, World* w)
+int event_fight_break_up(Tavern *b, World *w)
 {
     if (rand() % 2 == 0) {
         b->reputation += 0.30f;
         b->rumor += 0.30f;
         b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
         b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
-        log_message(&w->log, "You stepped in and broke up the fight. Patrons are impressed.", LOG_INFO);
+        log_message(
+            &w->log,
+            "You stepped in and broke up the fight. Patrons are impressed.",
+            LOG_INFO);
         return 1;
     } else {
         b->money -= FIGHT_MEDICAL_COST;
-        log_message(&w->log, "You tried to break up the fight but got hurt. Medical bill: $200.", LOG_WARN);
+        log_message(
+            &w->log,
+            "You tried to break up the fight but got hurt. Medical bill: $200.",
+            LOG_WARN);
         return 0;
     }
 }
 
-int handle_steal(int ch, Tavern* b, World* w)
+int handle_steal(int ch, Tavern *b, World *w)
 {
     switch (ch) {
-        case(1):
-            if (rand() % 2 == 0) {
-                b->reputation += 0.30f;
-                b->rumor += 0.30f;
-                b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
-                b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
-                log_message(&w->log, "You punched him and he ran away. Folk are impressed", LOG_INFO);
-                return 1;
-            } else {
-                b->money -= FIGHT_MEDICAL_COST;
-                b->reputation -= 0.30f;
-                b->rumor -= 0.30f;
-                b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
-                b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
-                log_message(&w->log, "Turns out, the son of a bitch is stronger than you! You pay for medical expenses, people make fun of you", LOG_WARN);
-                return 0;
-            }
-            break; 
-        case(2):
-            b->money -= 50;
-            b->reputation -= 0.15f;
-            b->rumor -= 0.15f;
-            log_message(&w->log, "You called the guards. People think you're a pussy", LOG_INFO);
+    case (1):
+        if (rand() % 2 == 0) {
+            b->reputation += 0.30f;
+            b->rumor += 0.30f;
+            b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+            b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
+            log_message(&w->log,
+                        "You punched him and he ran away. Folk are impressed",
+                        LOG_INFO);
             return 1;
-            break; 
-        case(3):
-            b->money -= 100;
-            b->drinks[DRINK_ALE].inventory.amount -= 5;
-            log_message(&w->log, "You ignored the thief. People didn't see anything. You obviously lost some booze, and money.", LOG_INFO);
-            return 1;
-            break; 
+        } else {
+            b->money -= FIGHT_MEDICAL_COST;
+            b->reputation -= 0.30f;
+            b->rumor -= 0.30f;
+            b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
+            b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
+            log_message(&w->log,
+                        "Turns out, the son of a bitch is stronger than you! "
+                        "You pay for medical expenses, people make fun of you",
+                        LOG_WARN);
+            return 0;
+        }
+        break;
+    case (2):
+        b->money -= 50;
+        b->reputation -= 0.15f;
+        b->rumor -= 0.15f;
+        log_message(&w->log,
+                    "You called the guards. People think you're a pussy",
+                    LOG_INFO);
+        return 1;
+        break;
+    case (3):
+        b->money -= 100;
+        b->drinks[DRINK_ALE].inventory.amount -= 5;
+        log_message(&w->log,
+                    "You ignored the thief. People didn't see anything. You "
+                    "obviously lost some booze, and money.",
+                    LOG_INFO);
+        return 1;
+        break;
     }
     return 0;
 }
 
-void handle_war_declaration(int choice, Tavern* b, Kingdom* k, World* w)
+void handle_war_declaration(int choice, Tavern *b, Kingdom *k, World *w)
 {
     if (k->our_kingdom_attack) {
         /* Our kingdom is the aggressor */
@@ -131,59 +136,93 @@ void handle_war_declaration(int choice, Tavern* b, Kingdom* k, World* w)
         case 1: /* back the conquest */
             if (rand() % 2 == 0) {
                 b->reputation += 0.20f;
-                log_message(&w->log, "You cheered on the conquest. Nationalists love you for it.", LOG_INFO);
+                log_message(&w->log,
+                            "You cheered on the conquest. Nationalists love "
+                            "you for it.",
+                            LOG_INFO);
             } else {
                 b->reputation -= 0.15f;
-                log_message(&w->log, "You backed the war. Several pacifist regulars walk out in disgust.", LOG_WARN);
+                log_message(&w->log,
+                            "You backed the war. Several pacifist regulars "
+                            "walk out in disgust.",
+                            LOG_WARN);
             }
             break;
         case 2: /* side with the defenders */
             if (rand() % 4 == 0) {
                 b->reputation += 0.10f;
-                log_message(&w->log, "You spoke against the war. A few moralists quietly respect you.", LOG_INFO);
+                log_message(&w->log,
+                            "You spoke against the war. A few moralists "
+                            "quietly respect you.",
+                            LOG_INFO);
             } else {
                 b->reputation -= 0.40f;
-                log_message(&w->log, "Traitor! You sided with the enemy. Locals want you out.", LOG_WARN);
+                log_message(
+                    &w->log,
+                    "Traitor! You sided with the enemy. Locals want you out.",
+                    LOG_WARN);
             }
             break;
         case 3: /* stay out of it */
             if (rand() % 2 == 0) {
                 b->reputation -= 0.10f;
-                log_message(&w->log, "You stayed neutral. Warmongers call you a coward.", LOG_WARN);
+                log_message(&w->log,
+                            "You stayed neutral. Warmongers call you a coward.",
+                            LOG_WARN);
             } else {
                 b->reputation -= 0.25f;
-                log_message(&w->log, "Neutrality in a war of aggression. Many regulars think you lack spine.", LOG_WARN);
+                log_message(&w->log,
+                            "Neutrality in a war of aggression. Many regulars "
+                            "think you lack spine.",
+                            LOG_WARN);
             }
             break;
         }
     } else {
         /* Our kingdom is being attacked */
         switch (choice) {
-        case 1: /* defend the kingdom */
+        case 1:                   /* defend the kingdom */
             if (rand() % 3 < 2) { /* 66% */
                 b->reputation += 0.30f;
-                log_message(&w->log, "You rallied for the kingdom's defense. Patriots are proud to drink here.", LOG_INFO);
+                log_message(&w->log,
+                            "You rallied for the kingdom's defense. Patriots "
+                            "are proud to drink here.",
+                            LOG_INFO);
             } else {
                 b->reputation += 0.05f;
-                log_message(&w->log, "You pledged to defend. Most approve, though a few war-weary patrons sigh.", LOG_INFO);
+                log_message(&w->log,
+                            "You pledged to defend. Most approve, though a few "
+                            "war-weary patrons sigh.",
+                            LOG_INFO);
             }
             break;
         case 2: /* side with the attackers */
             if (rand() % 5 == 0) {
                 b->reputation -= 0.20f;
-                log_message(&w->log, "You sided with the invaders. A few foreign merchants nod. Everyone else seethes.", LOG_WARN);
+                log_message(&w->log,
+                            "You sided with the invaders. A few foreign "
+                            "merchants nod. Everyone else seethes.",
+                            LOG_WARN);
             } else {
                 b->reputation -= 0.50f;
-                log_message(&w->log, "Collaborator! Word spreads like fire. Half your regulars swear never to return.", LOG_WARN);
+                log_message(&w->log,
+                            "Collaborator! Word spreads like fire. Half your "
+                            "regulars swear never to return.",
+                            LOG_WARN);
             }
             break;
         case 3: /* stay out of it */
             if (rand() % 2 == 0) {
                 b->reputation -= 0.20f;
-                log_message(&w->log, "You refused to take sides while your kingdom burns. People are disgusted.", LOG_WARN);
+                log_message(&w->log,
+                            "You refused to take sides while your kingdom "
+                            "burns. People are disgusted.",
+                            LOG_WARN);
             } else {
                 b->reputation -= 0.10f;
-                log_message(&w->log, "You stayed neutral. Some understand, most don't.", LOG_WARN);
+                log_message(&w->log,
+                            "You stayed neutral. Some understand, most don't.",
+                            LOG_WARN);
             }
             break;
         }
@@ -191,43 +230,57 @@ void handle_war_declaration(int choice, Tavern* b, Kingdom* k, World* w)
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
 }
 
-void handle_war_soldiers(int choice, Tavern* b, World* w)
+void handle_war_soldiers(int choice, Tavern *b, World *w)
 {
     switch (choice) {
     case 1: /* give free drinks */
         /* TODO: remove drinks from inventory instead of cutting money */
         b->money -= 200.0f;
         b->reputation += 0.20f;
-        log_message(&w->log, "Free drinks for the troops. They'll remember your generosity.", LOG_INFO);
+        log_message(
+            &w->log,
+            "Free drinks for the troops. They'll remember your generosity.",
+            LOG_INFO);
         break;
     case 2: /* charge half */
         b->money -= 100.0f;
         if (rand() % 2 == 0) {
             b->reputation += 0.05f;
-            log_message(&w->log, "Half price it is. The soldiers pay without complaint.", LOG_INFO);
+            log_message(&w->log,
+                        "Half price it is. The soldiers pay without complaint.",
+                        LOG_INFO);
         } else {
             b->reputation -= 0.10f;
-            log_message(&w->log, "Half price. The sergeant mutters you're a greedy innkeeper.", LOG_WARN);
+            log_message(
+                &w->log,
+                "Half price. The sergeant mutters you're a greedy innkeeper.",
+                LOG_WARN);
         }
         break;
     case 3: /* refuse */
         if (rand() % 2 == 0) {
             b->reputation -= 0.10f;
-            log_message(&w->log, "You refused them. They leave grumbling but cause no trouble.", LOG_WARN);
+            log_message(
+                &w->log,
+                "You refused them. They leave grumbling but cause no trouble.",
+                LOG_WARN);
         } else {
             b->money -= 150.0f;
             b->reputation -= 0.30f;
-            log_message(&w->log, "You refused them. The soldiers trash the place on their way out.", LOG_WARN);
+            log_message(&w->log,
+                        "You refused them. The soldiers trash the place on "
+                        "their way out.",
+                        LOG_WARN);
         }
         break;
     }
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
 }
 
-void handle_war_refugees(int choice, Tavern* b, Town* t, World* w)
+void handle_war_refugees(int choice, Tavern *b, Town *t, World *w)
 {
     switch (choice) {
-    case 1: /* welcome them */
+    case 1:                    /* welcome them */
         if (rand() % 10 < 6) { /* 60% */
             int i;
             b->reputation += 0.25f;
@@ -235,30 +288,46 @@ void handle_war_refugees(int choice, Tavern* b, Town* t, World* w)
                 citizen_spawn(&t->population);
                 t->population.citizens[t->population.count - 1].homeless = 1;
             }
-            log_message(&w->log, "You sheltered the refugees. Word of your kindness spreads.", LOG_INFO);
+            log_message(
+                &w->log,
+                "You sheltered the refugees. Word of your kindness spreads.",
+                LOG_INFO);
         } else {
             b->reputation -= 0.10f;
-            log_message(&w->log, "Regulars are annoyed by the crowded tavern and stop coming.", LOG_WARN);
+            log_message(
+                &w->log,
+                "Regulars are annoyed by the crowded tavern and stop coming.",
+                LOG_WARN);
         }
         break;
-    case 2: /* charge entry */
+    case 2:                    /* charge entry */
         if (rand() % 10 < 7) { /* 70% */
             b->money += 300.0f;
             b->reputation -= 0.05f;
-            log_message(&w->log, "You charged the refugees. Business is business.", LOG_INFO);
+            log_message(&w->log,
+                        "You charged the refugees. Business is business.",
+                        LOG_INFO);
         } else {
             b->money += 300.0f;
             b->reputation -= 0.25f;
-            log_message(&w->log, "Word got out you squeezed desperate refugees for coin. People are disgusted.", LOG_WARN);
+            log_message(&w->log,
+                        "Word got out you squeezed desperate refugees for "
+                        "coin. People are disgusted.",
+                        LOG_WARN);
         }
         break;
     case 3: /* turn away */
         if (rand() % 2 == 0) {
             b->reputation += 0.05f;
-            log_message(&w->log, "A few regulars agree: no room for more. Rep holds.", LOG_INFO);
+            log_message(&w->log,
+                        "A few regulars agree: no room for more. Rep holds.",
+                        LOG_INFO);
         } else {
             b->reputation -= 0.40f;
-            log_message(&w->log, "Turning away refugees in wartime. Word spreads you're heartless.", LOG_WARN);
+            log_message(&w->log,
+                        "Turning away refugees in wartime. Word spreads you're "
+                        "heartless.",
+                        LOG_WARN);
         }
         break;
     }
@@ -266,38 +335,50 @@ void handle_war_refugees(int choice, Tavern* b, Town* t, World* w)
 }
 
 /* attackers come by the tavern */
-void handle_war_attack(int choice, Tavern* b, World* w)
+void handle_war_attack(int choice, Tavern *b, World *w)
 {
-    switch(choice) {
-    case 1: /* play cool */
+    switch (choice) {
+    case 1:                    /* play cool */
         if (rand() % 2 == 0) { /* they don't harm you */
-            log_message(&w->log, "You played cool when the attackers came. They just passed by.", LOG_INFO);
+            log_message(
+                &w->log,
+                "You played cool when the attackers came. They just passed by.",
+                LOG_INFO);
         } else {
             b->money -= 500;
-            log_message(&w->log, "They decided to harm your tavern. You pay for the damage.", LOG_WARN);
+            log_message(
+                &w->log,
+                "They decided to harm your tavern. You pay for the damage.",
+                LOG_WARN);
         }
         break;
-    case 2: /* attack them */
+    case 2:                    /* attack them */
         if (rand() % 2 == 0) { /* they run */
             b->reputation += 0.50f;
-            log_message(&w->log, "Townsfolk see you attacking the troops, they decide to help you.", LOG_INFO);
+            log_message(&w->log,
+                        "Townsfolk see you attacking the troops, they decide "
+                        "to help you.",
+                        LOG_INFO);
         } else {
             b->reputation += 0.05f;
             b->money -= 1000;
-            log_message(&w->log, "You get your ass beaten, still, people saw what you did and you gained some reputation.", LOG_WARN);
+            log_message(&w->log,
+                        "You get your ass beaten, still, people saw what you "
+                        "did and you gained some reputation.",
+                        LOG_WARN);
         }
         break;
     }
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
 }
 
-void random_event(World* w)
+void random_event(World *w)
 {
     int i;
 
     /* rolled independently per kingdom */
     for (i = 0; i < w->kingdom_count; i++) {
-        Kingdom* k = &w->kingdoms[i];
+        Kingdom *k = &w->kingdoms[i];
         int chance_war = rand() % 10; /* 10% chance */
 
         /* only start a new war if not already at war */
@@ -309,7 +390,7 @@ void random_event(World* w)
 /* AI taverns have no interactive UI, so a fight/vomit/steal there is
    resolved on the spot with a random choice instead of going through
    World.pending_event (which only the player's tavern can present). */
-static void ai_handle_fight(Tavern* b, World* w, int tavern_id)
+static void ai_handle_fight(Tavern *b, World *w, int tavern_id)
 {
     char buf[128];
     int choice = rand() % 3;
@@ -330,11 +411,12 @@ static void ai_handle_fight(Tavern* b, World* w, int tavern_id)
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
     b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
 
-    tavern_snprintf(buf, sizeof(buf), "A brawl broke out at tavern #%d.", tavern_id);
+    tavern_snprintf(buf, sizeof(buf), "A brawl broke out at tavern #%d.",
+                    tavern_id);
     log_message(&w->log, buf, LOG_INFO);
 }
 
-static void ai_handle_vomit(Tavern* b, World* w, int tavern_id)
+static void ai_handle_vomit(Tavern *b, World *w, int tavern_id)
 {
     char buf[128];
     int choice = rand() % 3;
@@ -353,32 +435,41 @@ static void ai_handle_vomit(Tavern* b, World* w, int tavern_id)
     b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
     b->rumor = CLAMP(b->rumor, 0.0f, 1.0f);
 
-    tavern_snprintf(buf, sizeof(buf), "Someone puked all over tavern #%d.", tavern_id);
+    tavern_snprintf(buf, sizeof(buf), "Someone puked all over tavern #%d.",
+                    tavern_id);
     log_message(&w->log, buf, LOG_INFO);
 }
 
-static void ai_handle_steal(Tavern* b, World* w, int tavern_id)
+static void ai_handle_steal(Tavern *b, World *w, int tavern_id)
 {
     char buf[128];
     int choice = rand() % 3;
 
     handle_steal(choice + 1, b, w);
 
-    tavern_snprintf(buf, sizeof(buf), "A thief tried their luck at tavern #%d.", tavern_id);
+    tavern_snprintf(buf, sizeof(buf), "A thief tried their luck at tavern #%d.",
+                    tavern_id);
     log_message(&w->log, buf, LOG_INFO);
 }
 
-void evaluate_customer_events(Kingdom* k, Town* t, World* w, int tavern_id, const DayResult* day)
+void evaluate_customer_events(Kingdom *k, Town *t, World *w, int tavern_id,
+                              const DayResult *day)
 {
-    Tavern* b = &t->taverns[tavern_id];
-    float fight_chance = CLAMP(day->rowdy_visitors * FIGHT_CHANCE_PER_ROWDY, 0.0f, FIGHT_CHANCE_CAP);
-    float vomit_chance = CLAMP(day->rowdy_visitors * VOMIT_CHANCE_PER_ROWDY, 0.0f, VOMIT_CHANCE_CAP);
-    float steal_chance = CLAMP(day->destitute_visitors * STEAL_CHANCE_PER_DESTITUTE, 0.0f, STEAL_CHANCE_CAP);
-    int is_player_tavern = (k->id == w->player_kingdom_id && t->id == k->player_town_id
-                             && tavern_id == t->player_tavern_id);
+    Tavern *b = &t->taverns[tavern_id];
+    float fight_chance = CLAMP(day->rowdy_visitors * FIGHT_CHANCE_PER_ROWDY,
+                               0.0f, FIGHT_CHANCE_CAP);
+    float vomit_chance = CLAMP(day->rowdy_visitors * VOMIT_CHANCE_PER_ROWDY,
+                               0.0f, VOMIT_CHANCE_CAP);
+    float steal_chance =
+        CLAMP(day->destitute_visitors * STEAL_CHANCE_PER_DESTITUTE, 0.0f,
+              STEAL_CHANCE_CAP);
+    int is_player_tavern =
+        (k->id == w->player_kingdom_id && t->id == k->player_town_id &&
+         tavern_id == t->player_tavern_id);
 
     if (is_player_tavern) {
-        if (w->pending_event != EVENT_NONE) return;
+        if (w->pending_event != EVENT_NONE)
+            return;
 
         if (fight_chance > 0.0f && frand() < fight_chance) {
             event_fight(w);

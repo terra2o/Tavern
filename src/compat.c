@@ -1,17 +1,17 @@
 /*
-*
-* compat.c for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * compat.c for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
-#include <stdio.h>
+#include "compat.h"
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
-#include "../include/compat.h"
 
 /* Plenty for the status/log lines this is used for - none of them come
    close, since the %s args are always short static strings (drink
