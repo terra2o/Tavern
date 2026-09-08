@@ -1,18 +1,18 @@
 /*
-*
-* kingdom.c for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * kingdom.c for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
+#include "kingdom.h"
+#include "sim.h"
 #include <stdlib.h>
-#include "../include/kingdom.h"
-#include "../include/sim.h"
 
-void kingdom_towns_init(Kingdom* k, int capacity)
+void kingdom_towns_init(Kingdom *k, int capacity)
 {
     int i;
 
@@ -25,7 +25,7 @@ void kingdom_towns_init(Kingdom* k, int capacity)
     k->towns = malloc(capacity * sizeof(Town));
 }
 
-void kingdom_towns_free(Kingdom* k)
+void kingdom_towns_free(Kingdom *k)
 {
     int i;
 
@@ -37,20 +37,18 @@ void kingdom_towns_free(Kingdom* k)
     k->town_capacity = 0;
 }
 
-int kingdom_add_town(Kingdom* k, Town t)
+int kingdom_add_town(Kingdom *k, Town t)
 {
-    if (k->town_count >= k->town_capacity) return -1;
+    if (k->town_count >= k->town_capacity)
+        return -1;
     t.id = k->town_count;
     k->towns[k->town_count] = t;
     return k->town_count++;
 }
 
-void kingdom_free(Kingdom* k)
-{
-    kingdom_towns_free(k);
-}
+void kingdom_free(Kingdom *k) { kingdom_towns_free(k); }
 
-void world_kingdoms_init(World* w, int capacity)
+void world_kingdoms_init(World *w, int capacity)
 {
     int i;
 
@@ -63,7 +61,7 @@ void world_kingdoms_init(World* w, int capacity)
     w->kingdoms = malloc(capacity * sizeof(Kingdom));
 }
 
-void world_kingdoms_free(World* w)
+void world_kingdoms_free(World *w)
 {
     int i;
 
@@ -75,27 +73,28 @@ void world_kingdoms_free(World* w)
     w->kingdom_capacity = 0;
 }
 
-int world_add_kingdom(World* w, Kingdom k)
+int world_add_kingdom(World *w, Kingdom k)
 {
-    if (w->kingdom_count >= w->kingdom_capacity) return -1;
+    if (w->kingdom_count >= w->kingdom_capacity)
+        return -1;
     k.id = w->kingdom_count;
     w->kingdoms[w->kingdom_count] = k;
     return w->kingdom_count++;
 }
 
-Kingdom* world_player_kingdom(World* w)
+Kingdom *world_player_kingdom(World *w)
 {
     return &w->kingdoms[w->player_kingdom_id];
 }
 
-Town* world_player_town(World* w)
+Town *world_player_town(World *w)
 {
-    Kingdom* k = world_player_kingdom(w);
+    Kingdom *k = world_player_kingdom(w);
     return &k->towns[k->player_town_id];
 }
 
-struct Tavern* world_player_tavern(World* w)
+struct Tavern *world_player_tavern(World *w)
 {
-    Town* t = world_player_town(w);
+    Town *t = world_player_town(w);
     return &t->taverns[t->player_tavern_id];
 }

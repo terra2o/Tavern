@@ -1,21 +1,21 @@
 /*
-*
-* population.c for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * population.c for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
-#include <stdlib.h>
+#include "population.h"
+#include "log.h"
+#include "sim.h" /* for the CLAMP macro */
+#include "sim_random.h"
 #include <stdio.h>
-#include "../include/sim_random.h"
-#include "../include/population.h"
-#include "../include/log.h"
-#include "../include/sim.h" /* for the CLAMP macro */
+#include <stdlib.h>
 
-void population_init(Population* pop, int capacity)
+void population_init(Population *pop, int capacity)
 {
     pop->capacity = capacity;
     pop->count = 0;
@@ -23,7 +23,7 @@ void population_init(Population* pop, int capacity)
     pop->citizens = malloc(capacity * sizeof(Citizen));
 }
 
-void population_free(Population* pop)
+void population_free(Population *pop)
 {
     free(pop->citizens);
     pop->citizens = NULL;
@@ -32,17 +32,19 @@ void population_free(Population* pop)
     pop->capacity = 0;
 }
 
-void population_recount_alive(Population* pop)
+void population_recount_alive(Population *pop)
 {
     int alive = 0;
     int i;
 
     for (i = 0; i < pop->count; i++)
-        if (pop->citizens[i].alive) alive++;
+        if (pop->citizens[i].alive)
+            alive++;
     pop->alive_count = alive;
 }
 
-void population_stats(const Population* pop, float* avg_thirst, float* avg_addiction, float* avg_anger)
+void population_stats(const Population *pop, float *avg_thirst,
+                      float *avg_addiction, float *avg_anger)
 {
     float thirst_sum = 0.0f;
     float addiction_sum = 0.0f;
@@ -51,8 +53,9 @@ void population_stats(const Population* pop, float* avg_thirst, float* avg_addic
     int i;
 
     for (i = 0; i < pop->count; i++) {
-        const Citizen* c = &pop->citizens[i];
-        if (!c->alive) continue;
+        const Citizen *c = &pop->citizens[i];
+        if (!c->alive)
+            continue;
         thirst_sum += c->thirst;
         addiction_sum += c->addiction;
         anger_sum += c->anger;
@@ -71,12 +74,13 @@ void population_stats(const Population* pop, float* avg_thirst, float* avg_addic
 #define WEALTHY_WEALTH_BONUS_MAX 400.0f
 #define WEALTHY_INCOME_BONUS_MAX 20.0f
 
-void citizen_spawn(Population* pop)
+void citizen_spawn(Population *pop)
 {
-    Citizen* c;
+    Citizen *c;
     int d;
 
-    if (pop->count >= pop->capacity) return;
+    if (pop->count >= pop->capacity)
+        return;
 
     c = &pop->citizens[pop->count];
     c->age = 0;
@@ -103,31 +107,34 @@ void citizen_spawn(Population* pop)
 }
 
 #define THIRST_GROWTH_PER_DAY 0.08f
-#define ADDICTION_THIRST_BOOST 0.05f /* extra daily thirst growth at max addiction */
+#define ADDICTION_THIRST_BOOST                                                 \
+    0.05f /* extra daily thirst growth at max addiction */
 
 /* Health erodes for anyone drinking heavily, recovers slowly otherwise */
 #define HEALTHY_ADDICTION_THRESHOLD 0.1f
 #define HEALTH_DECAY_PER_ADDICTION 0.01f
 #define HEALTH_RECOVERY_PER_DAY 0.005f
 
-/* Past this many days old, a small and growing chance of natural death kicks in */
+/* Past this many days old, a small and growing chance of natural death kicks in
+ */
 #define OLD_AGE_THRESHOLD_DAYS 3000
 #define OLD_AGE_DEATH_CHANCE_PER_DAY 0.001f
 
 /* Anger drifts back down on its own each day unless something stokes it */
 #define ANGER_DECAY_PER_DAY 0.015f
 
-void population_tick(Population* pop, MessageLog* log)
+void population_tick(Population *pop, MessageLog *log)
 {
     int deaths_health = 0;
     int deaths_age = 0;
     int i;
 
     for (i = 0; i < pop->count; i++) {
-        Citizen* c = &pop->citizens[i];
+        Citizen *c = &pop->citizens[i];
         float growth;
 
-        if (!c->alive) continue;
+        if (!c->alive)
+            continue;
         c->age++;
 
         /* Thirst builds up daily; the market pass resets it for
@@ -140,7 +147,9 @@ void population_tick(Population* pop, MessageLog* log)
         c->anger = CLAMP(c->anger - ANGER_DECAY_PER_DAY, 0.0f, 1.0f);
 
         if (c->addiction > HEALTHY_ADDICTION_THRESHOLD)
-            c->health = CLAMP(c->health - c->addiction * HEALTH_DECAY_PER_ADDICTION, 0.0f, 1.0f);
+            c->health =
+                CLAMP(c->health - c->addiction * HEALTH_DECAY_PER_ADDICTION,
+                      0.0f, 1.0f);
         else
             c->health = CLAMP(c->health + HEALTH_RECOVERY_PER_DAY, 0.0f, 1.0f);
 
@@ -152,7 +161,9 @@ void population_tick(Population* pop, MessageLog* log)
         }
 
         if (c->age > OLD_AGE_THRESHOLD_DAYS) {
-            float death_chance = CLAMP((c->age - OLD_AGE_THRESHOLD_DAYS) * OLD_AGE_DEATH_CHANCE_PER_DAY, 0.0f, 1.0f);
+            float death_chance = CLAMP((c->age - OLD_AGE_THRESHOLD_DAYS) *
+                                           OLD_AGE_DEATH_CHANCE_PER_DAY,
+                                       0.0f, 1.0f);
             if (frand() < death_chance) {
                 c->alive = 0;
                 pop->alive_count--;
@@ -163,13 +174,15 @@ void population_tick(Population* pop, MessageLog* log)
 
     if (deaths_health > 0) {
         char buf[128];
-        tavern_snprintf(buf, sizeof(buf), "%d townsfolk drank themselves to death", deaths_health);
+        tavern_snprintf(buf, sizeof(buf),
+                        "%d townsfolk drank themselves to death",
+                        deaths_health);
         log_message(log, buf, LOG_WARN);
     }
     if (deaths_age > 0) {
         char buf[128];
-        tavern_snprintf(buf, sizeof(buf), "%d elderly townsfolk passed away", deaths_age);
+        tavern_snprintf(buf, sizeof(buf), "%d elderly townsfolk passed away",
+                        deaths_age);
         log_message(log, buf, LOG_INFO);
     }
 }
-

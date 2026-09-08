@@ -1,17 +1,17 @@
 /*
-*
-* reputation.c for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * reputation.c for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
+#include "reputation.h"
+#include "sim.h"
+#include "sim_random.h"
 #include <math.h>
-#include "../include/reputation.h"
-#include "../include/sim.h"
-#include "../include/sim_random.h"
 
 #define EMPTY_INVENTORY_RUMOR_PENALTY 0.05f
 #define QUALITY_PERCEIVED_CATCHUP_RATE 0.1f
@@ -33,22 +33,24 @@
 /* Floor instead of 0, to avoid a reputation of exactly 0 causing issues */
 #define REPUTATION_FLOOR 0.1f
 
-void reputation_tick(Tavern* b, int sales_today)
+void reputation_tick(Tavern *b, int sales_today)
 {
     /* Inventory affects rumor */
     if (b->total_inventory == 0)
         b->rumor -= EMPTY_INVENTORY_RUMOR_PENALTY;
 
     /* Quality perception slowly follows reality */
-    b->quality_perceived +=
-        (b->quality_actual - b->quality_perceived) * QUALITY_PERCEIVED_CATCHUP_RATE;
+    b->quality_perceived += (b->quality_actual - b->quality_perceived) *
+                            QUALITY_PERCEIVED_CATCHUP_RATE;
 
     /* Rumors are noisy */
     b->rumor += (frand() - 0.5f) * RUMOR_NOISE;
 
     /* Sales affect rumor */
-    if (sales_today > HIGH_SALES_THRESHOLD) b->rumor += HIGH_SALES_RUMOR_BONUS;
-    if (sales_today < LOW_SALES_THRESHOLD) b->rumor -= LOW_SALES_RUMOR_PENALTY;
+    if (sales_today > HIGH_SALES_THRESHOLD)
+        b->rumor += HIGH_SALES_RUMOR_BONUS;
+    if (sales_today < LOW_SALES_THRESHOLD)
+        b->rumor -= LOW_SALES_RUMOR_PENALTY;
 
     /* Clamp values */
     b->quality_perceived = CLAMP(b->quality_perceived, 0.0f, 1.0f);
@@ -61,6 +63,8 @@ void reputation_tick(Tavern* b, int sales_today)
                     REPUTATION_WEIGHT_CONSISTENCY * b->consistency +
                     REPUTATION_WEIGHT_HANDSOMENESS * b->handsomeness;
 
-    if (b->reputation < 0) b->reputation = REPUTATION_FLOOR;
-    if (b->reputation > 1) b->reputation = 1.0f;
+    if (b->reputation < 0)
+        b->reputation = REPUTATION_FLOOR;
+    if (b->reputation > 1)
+        b->reputation = 1.0f;
 }

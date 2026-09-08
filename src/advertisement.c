@@ -1,14 +1,14 @@
 /*
-*
-* advertisement.c for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * advertisement.c for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
-#include "../include/advertisement.h"
+#include "advertisement.h"
 
 #define ADS_STALE_DAYS 10
 #define ADS_STALE_LOSS_FRACTION 0.25f

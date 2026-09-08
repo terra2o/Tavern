@@ -1,20 +1,20 @@
 /*
-*
-* ui.h for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * ui.h for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
 #ifndef UI_H
 #define UI_H
 
-#include "../include/sim.h"
-#include "../include/game_state.h"
-#include "../include/event.h"
-#include "../include/collect_game.h"
+#include "collect_game.h"
+#include "event.h"
+#include "game_state.h"
+#include "sim.h"
 
 /* UI state machine modes */
 typedef enum {
@@ -31,6 +31,7 @@ typedef enum {
     UI_MODE_SUPPLIER,
     UI_MODE_COLLECT,
     UI_MODE_WINE_VARIETY,
+    UI_MODE_HIRE_ROLE,
     UI_MODE_DETAIL
 } UiMode;
 
@@ -39,7 +40,7 @@ typedef enum {
    hardcoding per-action branches. */
 typedef struct {
     Action action;
-    const char* prompt;
+    const char *prompt;
     float min_val;
     float max_val;
     int is_float;
@@ -55,7 +56,7 @@ typedef struct {
     int max_val;
     float float_min_val;
     float float_max_val;
-    const char* prompt;
+    const char *prompt;
     int result;
     float float_result;
     int is_float;
@@ -86,32 +87,34 @@ typedef struct {
 void init_colors(void);
 
 /* Initialize UI state */
-void ui_state_init(UiState* state);
+void ui_state_init(UiState *state);
 
 /* Draw the message log */
-void draw_log(const MessageLog* log, int max_x, int max_y, int scroll_offset);
+void draw_log(const MessageLog *log, int max_x, int max_y, int scroll_offset);
 
 /* Draw the entire UI screen with status, actions, stats, and input dialogs */
-void draw_ui(Tavern* b, int day, int action_num, int actions_per_day,
-             Town* t, Kingdom* k, World *w, UiState* ui_state, WarState* war);
+void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
+             Kingdom *k, World *w, UiState *ui_state, WarState *war);
 
 /* The game where you collect fruits to make wines */
-void draw_collecting_game(Tavern* b, UiState* ui_state);
+void draw_collecting_game(Tavern *b, UiState *ui_state);
 
 /* Update UI state based on a single character of input (non-blocking) */
-void ui_handle_input(int ch, UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World* w);
+void ui_handle_input(int ch, UiState *ui_state, Tavern *b, Town *t, Kingdom *k,
+                     World *w);
 
 /* Start number input mode. Set is_float=1 to allow decimal input. */
-void ui_start_number_input(UiState* ui_state, const char* prompt,
-                           float min_val, float max_val, int is_float);
+void ui_start_number_input(UiState *ui_state, const char *prompt, float min_val,
+                           float max_val, int is_float);
 
 /* Process a confirmed action with its parameter */
-void ui_process_action(UiState* ui_state, Tavern* b, Town* t, Kingdom* k, World* w);
+void ui_process_action(UiState *ui_state, Tavern *b, Town *t, Kingdom *k,
+                       World *w);
 
 /* Read an action key press (1-9 or Q). Only called in NORMAL mode. */
 Action read_action(int ch);
 
 /* Look up the input spec for an action, or NULL if it runs instantly */
-const ActionInputSpec* find_action_input_spec(Action a);
+const ActionInputSpec *find_action_input_spec(Action a);
 
 #endif /* UI_H */

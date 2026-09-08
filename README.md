@@ -36,7 +36,14 @@ It Features:
 
 Here's a to-do list for this game (The ones with strikethrough are done):
 
-- Employee management
+- [ ] Employee management
+  - [x] employee.h
+  - [x] make every day 24 hours, divide time spent for each action based on total actions available
+  - [x] overview board for employees, their stats, wage, etc.
+  - [x] cleaners ocassionally clean, bartenders fill up drinks for customers (if we don't have enough bartenders, then we might not be able to supply drinks to everyone), waiters deliver the drinks, cooks make food (add food)
+  - [ ] option to fire employees, there could be a mechanic where we press `f` in employee overview screen, and then select the id, get a pop-up asking if we're sure, etc.
+- [x] Food (related with employee)
+- [ ] Refactor `main.c`. main should be small 
 - *and much more stuff that could happen in an actual medieval tavern...*
 
 ## itch.io

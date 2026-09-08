@@ -1,12 +1,12 @@
 /*
-*
-* game_state.h for Tavern
-*
-* Copyright 2026 terra2o and contributors
-*
-* Licensed under GPLv3
-*
-*/
+ *
+ * game_state.h for Tavern
+ *
+ * Copyright 2026 terra2o and contributors
+ *
+ * Licensed under GPLv3
+ *
+ */
 
 #ifndef GAME_STATE_H
 #define GAME_STATE_H
@@ -31,8 +31,8 @@ typedef enum {
 } PendingEventType;
 
 typedef struct World {
-    int day;                 /* This is absolute day since game started */
-    MessageLog log;          /* Logs of events happening */
+    int day;        /* This is absolute day since game started */
+    MessageLog log; /* Logs of events happening */
     PendingEventType pending_event;
 
     /* Pool of every kingdom that exists. Type is forward-declared (not
@@ -40,11 +40,12 @@ typedef struct World {
        includes this header for World. Each Kingdom owns its own pool of
        Towns, which each own their own population + tavern/merchant pools -
        see kingdom.h/town.h. */
-    struct Kingdom* kingdoms;
+    struct Kingdom *kingdoms;
     int kingdom_count;
     int kingdom_capacity;
 
-    int player_kingdom_id; /* index into kingdoms[] the player currently occupies */
+    int player_kingdom_id; /* index into kingdoms[] the player currently
+                              occupies */
 } World;
 
 #endif
