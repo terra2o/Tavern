@@ -167,13 +167,30 @@ void apply_action(Tavern *b, Action a, Town *t, Kingdom *k, World *w,
     }
 }
 
-void process_payment(Kingdom *k, World *w, Tavern *b, int current_day)
+static void process_wages(World *w, Tavern *b)
 {
     int i;
     float total_paid_to_employees = 0.0f;
     char buf_e[256];
 
+    if (b->employee_count <= 0 || !b->employees)
+        return;
+
+    for (i = 0; i < b->employee_count; i++) {
+        float wage = (float)b->employees[i].wage_cents / 100.0f;
+        b->money -= wage;
+        total_paid_to_employees += wage;
+    }
+    tavern_snprintf(buf_e, sizeof(buf_e),
+                    "Wage paid to employees in total $%.2f",
+                    total_paid_to_employees);
+    log_message(&w->log, buf_e, LOG_IMPORTANT);
+}
+
+void process_payment(Kingdom *k, World *w, Tavern *b, int current_day)
+{
     PeriodicPayment *p = &b->rent;
+
     if (current_day >= p->next_payment_day) {
         float actual_rent = p->base_rent * k->inflation_rate;
         char buf[256];
@@ -184,17 +201,7 @@ void process_payment(Kingdom *k, World *w, Tavern *b, int current_day)
     }
 
     if (current_day >= p->next_wage_day) {
-        if (b->employee_count > 0 && b->employees) {
-            for (i = 0; i < b->employee_count; i++) {
-                float wage = (float)b->employees[i].wage_cents / 100.0f;
-                b->money -= wage;
-                total_paid_to_employees += wage;
-            }
-            tavern_snprintf(buf_e, sizeof(buf_e),
-                            "Wage paid to employees in total $%.2f",
-                            total_paid_to_employees);
-            log_message(&w->log, buf_e, LOG_IMPORTANT);
-        }
+        process_wages(w, b);
         p->next_wage_day += p->pay_period;
     }
 }
@@ -205,6 +212,25 @@ void process_payment(Kingdom *k, World *w, Tavern *b, int current_day)
    merchant must not each re-roll its prices, so this updates the
    merchant pool directly instead of going through whichever tavern
    happens to call it. */
+static void town_population_grow(Town *t, MessageLog *log)
+{
+    int new_citizens = (int)(frand() * 5.0f) + 1;
+    int j;
+
+    for (j = 0; j < new_citizens; j++)
+        citizen_spawn(&t->population);
+    population_tick(&t->population, log);
+}
+
+static void town_merchants_update(Town *t, float inflation_rate,
+                                  float inflation_growth)
+{
+    int m;
+
+    for (m = 0; m < t->merchant_count; m++)
+        update_merchant(&t->merchants[m], inflation_rate, inflation_growth);
+}
+
 static void world_tick(World *w)
 {
     int ki, ti;
@@ -213,24 +239,14 @@ static void world_tick(World *w)
         Kingdom *k = &w->kingdoms[ki];
         float inflation_growth;
 
-        for (ti = 0; ti < k->town_count; ti++) {
-            Town *t = &k->towns[ti];
-            int new_citizens = (int)(frand() * 5.0f) + 1;
-            int j;
-            for (j = 0; j < new_citizens; j++)
-                citizen_spawn(&t->population);
-            population_tick(&t->population, &w->log);
-        }
+        for (ti = 0; ti < k->town_count; ti++)
+            town_population_grow(&k->towns[ti], &w->log);
 
         inflation_growth = inflation_tick(k);
 
-        for (ti = 0; ti < k->town_count; ti++) {
-            Town *t = &k->towns[ti];
-            int m;
-            for (m = 0; m < t->merchant_count; m++)
-                update_merchant(&t->merchants[m], k->inflation_rate,
-                                inflation_growth);
-        }
+        for (ti = 0; ti < k->town_count; ti++)
+            town_merchants_update(&k->towns[ti], k->inflation_rate,
+                                  inflation_growth);
     }
 
     random_event(w);
@@ -350,18 +366,19 @@ static void ai_tavern_decide(Tavern *b, Town *t, Kingdom *k, World *w)
         b->drinks[d].price += (target - b->drinks[d].price) * 0.2f;
     }
 
-    /* Restock whichever drink is running low, if affordable and in stock */
+    /* restock whichever drink is running low, if affordable and in stock */
     for (d = 0; d < DRINK_COUNT; d++) {
-        if (b->drinks[d].inventory.amount < 5) {
-            buy = 20;
-            if (buy > merchant_available_stock(b->supplier, d))
-                buy = merchant_available_stock(b->supplier, d);
-            cost = buy * merchant_quote_price(b->supplier, b->id, d);
-            if (buy > 0 && b->money >= cost) {
-                b->drinks[d].inventory.amount += buy;
-                b->money -= cost;
-                merchant_record_purchase(b->supplier, b->id, d, buy);
-            }
+        if (b->drinks[d].inventory.amount >= 5)
+            continue;
+
+        buy = 20;
+        if (buy > merchant_available_stock(b->supplier, d))
+            buy = merchant_available_stock(b->supplier, d);
+        cost = buy * merchant_quote_price(b->supplier, b->id, d);
+        if (buy > 0 && b->money >= cost) {
+            b->drinks[d].inventory.amount += buy;
+            b->money -= cost;
+            merchant_record_purchase(b->supplier, b->id, d, buy);
         }
     }
 
@@ -421,6 +438,56 @@ static void ai_handle_cat_trouble(Tavern *b, World *w, int tavern_id)
    the day - this is the market.c-style "who visits where" pass, just
    for cats, so it needs Tavern/Kingdom, which is why it lives here
    instead of animals.c. */
+static void cat_visit_tavern(Cat *c, Town *t, World *w, int is_player_town)
+{
+    int bowl_tavern = -1;
+    int j, drink;
+    Tavern *b;
+
+    if (!c->alive || c->thirst < CAT_THIRST_SEEK_THRESHOLD ||
+        t->tavern_count == 0)
+        return;
+
+    for (j = 0; j < t->tavern_count; j++) {
+        if (tavern_water_bowl_filled(&t->taverns[j], w->day)) {
+            bowl_tavern = j;
+            break;
+        }
+    }
+
+    if (bowl_tavern >= 0) {
+        c->thirst = 0.0f;
+        return;
+    }
+
+    /* no filled bowl anywhere in town; sneaks into a random tavern */
+    j = rand() % t->tavern_count;
+    b = &t->taverns[j];
+    drink = (frand() < 0.7f)
+                ? DRINK_ALE
+                : (rand() % 2 == 0 ? DRINK_WINE_APPLE : DRINK_WINE_GRAPE);
+
+    if (b->drinks[drink].inventory.amount <= 0)
+        return;
+
+    b->drinks[drink].inventory.amount--;
+    tavern_recompute_total_inventory(b);
+    c->thirst = CLAMP(c->thirst - CAT_THIRST_RESET_ON_DRINK, 0.0f, 1.0f);
+
+    if (frand() >= CAT_DRUNK_CHANCE)
+        return;
+
+    c->drunk = 1;
+    if (is_player_town && j == t->player_tavern_id) {
+        if (w->pending_event == EVENT_NONE)
+            event_cat_trouble(w);
+        return;
+    }
+
+    ai_handle_cat_trouble(b, w, j);
+}
+
+/* thirsty cats seek a filled bowl; if none exists, they sneak into taverns */
 static void cats_visit_taverns(Kingdom *k, Town *t, World *w)
 {
     Animals *a = &t->cats;
@@ -428,66 +495,11 @@ static void cats_visit_taverns(Kingdom *k, Town *t, World *w)
         (k->id == w->player_kingdom_id && t->id == k->player_town_id);
     int i;
 
-    for (i = 0; i < a->count; i++) {
-        Cat *c = &a->cats[i];
-        int bowl_tavern;
-        int j;
-        Tavern *b;
-        int drink;
-        int is_player_tavern;
-
-        if (!c->alive)
-            continue;
-        if (c->thirst < CAT_THIRST_SEEK_THRESHOLD)
-            continue;
-        if (t->tavern_count == 0)
-            continue;
-
-        bowl_tavern = -1;
-        for (j = 0; j < t->tavern_count; j++) {
-            if (tavern_water_bowl_filled(&t->taverns[j], w->day)) {
-                bowl_tavern = j;
-                break;
-            }
-        }
-
-        if (bowl_tavern >= 0) {
-            c->thirst = 0.0f;
-            continue;
-        }
-
-        /* No filled bowl anywhere in town - sneaks into a random tavern
-           looking for something to drink. */
-        j = rand() % t->tavern_count;
-        b = &t->taverns[j];
-        drink = (frand() < 0.7f)
-                    ? DRINK_ALE
-                    : (rand() % 2 == 0 ? DRINK_WINE_APPLE : DRINK_WINE_GRAPE);
-
-        if (b->drinks[drink].inventory.amount <= 0)
-            continue;
-
-        b->drinks[drink].inventory.amount--;
-        tavern_recompute_total_inventory(b);
-        c->thirst = CLAMP(c->thirst - CAT_THIRST_RESET_ON_DRINK, 0.0f, 1.0f);
-
-        if (frand() < CAT_DRUNK_CHANCE) {
-            c->drunk = 1;
-            is_player_tavern = is_player_town && j == t->player_tavern_id;
-            if (is_player_tavern) {
-                if (w->pending_event == EVENT_NONE)
-                    event_cat_trouble(w);
-            } else {
-                ai_handle_cat_trouble(b, w, j);
-            }
-        }
-    }
+    for (i = 0; i < a->count; i++)
+        cat_visit_tavern(&a->cats[i], t, w, is_player_town);
 }
 
-/* How the player's tavern stacked up against the busiest rival today.
-   Purely informational, logged once per day. Town-wide mood (thirst,
-   addiction) is shown live in the left status panel instead, see
-   draw_ui() in ui.c. */
+/* compare player tavern performance against the busiest rival today */
 static void log_daily_summary(Town *t, World *w, DayResult *results)
 {
     char buf[160];
@@ -496,22 +508,71 @@ static void log_daily_summary(Town *t, World *w, DayResult *results)
     int player_customers;
     int i;
 
-    if (t->tavern_count > 1) {
-        for (i = 0; i < t->tavern_count; i++) {
-            if (i == t->player_tavern_id)
-                continue;
-            if (results[i].customers > best_rival_customers) {
-                best_rival_customers = results[i].customers;
-                best_rival = i;
-            }
+    if (t->tavern_count <= 1)
+        return;
+
+    for (i = 0; i < t->tavern_count; i++) {
+        if (i == t->player_tavern_id)
+            continue;
+        if (results[i].customers > best_rival_customers) {
+            best_rival_customers = results[i].customers;
+            best_rival = i;
         }
-        player_customers = results[t->player_tavern_id].customers;
-        tavern_snprintf(
-            buf, sizeof(buf),
-            "Competition: you drew %d customers, tavern #%d drew %d.",
-            player_customers, best_rival, best_rival_customers);
-        log_message(&w->log, buf, LOG_INFO);
     }
+    player_customers = results[t->player_tavern_id].customers;
+    tavern_snprintf(buf, sizeof(buf),
+                    "Competition: you drew %d customers, tavern #%d drew %d.",
+                    player_customers, best_rival, best_rival_customers);
+    log_message(&w->log, buf, LOG_INFO);
+}
+
+static void tavern_daily_prep(Tavern *b, Town *t, Kingdom *k, World *w,
+                              int is_player_tavern)
+{
+    int e;
+
+    if (!is_player_tavern)
+        ai_tavern_decide(b, t, k, w);
+    process_payment(k, w, b, w->day);
+    employee_cleaners_work(b, w->day, is_player_tavern ? &w->log : NULL);
+    employee_cooks_work(b, is_player_tavern ? &w->log : NULL);
+
+    for (e = 0; e < b->employee_count; e++) {
+        Employee *emp = &b->employees[e];
+        employee_rest(emp, emp->on_duty ? 15 : 30);
+    }
+}
+
+static int simulate_town_day(Town *t, Kingdom *k, World *w, int is_player_town)
+{
+    DayResult results[MAX_TAVERNS] = {0};
+    int sales_today = 0;
+    int j, d;
+
+    /* taverns settle state and run duties before citizens pick venues */
+    for (j = 0; j < t->tavern_count; j++) {
+        int is_player_tavern = is_player_town && j == t->player_tavern_id;
+        tavern_daily_prep(&t->taverns[j], t, k, w, is_player_tavern);
+    }
+
+    market_simulate_all(t, w, results);
+
+    for (j = 0; j < t->tavern_count; j++)
+        tavern_post_market(&t->taverns[j], &results[j]);
+
+    cats_tick(&t->cats, &w->log);
+    cats_visit_taverns(k, t, w);
+
+    for (j = 0; j < t->tavern_count; j++)
+        evaluate_customer_events(k, t, w, j, &results[j]);
+
+    if (is_player_town) {
+        log_daily_summary(t, w, results);
+        for (d = 0; d < DRINK_COUNT; d++)
+            sales_today += results[t->player_tavern_id].sales[d];
+    }
+
+    return sales_today;
 }
 
 int simulate_day(World *w)
@@ -526,53 +587,9 @@ int simulate_day(World *w)
 
         for (ti = 0; ti < k->town_count; ti++) {
             Town *t = &k->towns[ti];
-            DayResult results[MAX_TAVERNS] = {0};
             int is_player_town =
                 (k->id == w->player_kingdom_id && t->id == k->player_town_id);
-            int j, d, e;
-
-            /* Every tavern settles its state (price, stock, cleanliness)
-               before the shared market pass, since citizens are choosing
-               between taverns, not visiting each one independently. */
-            for (j = 0; j < t->tavern_count; j++) {
-                int is_player_tavern =
-                    is_player_town && j == t->player_tavern_id;
-                if (!is_player_tavern)
-                    ai_tavern_decide(&t->taverns[j], t, k, w);
-                process_payment(k, w, &t->taverns[j], w->day);
-                employee_cleaners_work(&t->taverns[j], w->day,
-                                       is_player_tavern ? &w->log : NULL);
-                employee_cooks_work(&t->taverns[j],
-                                    is_player_tavern ? &w->log : NULL);
-                for (e = 0; e < t->taverns[j].employee_count; e++) {
-                    Employee *emp = &t->taverns[j].employees[e];
-                    if (!emp->on_duty)
-                        employee_rest(emp, 30);
-                    else
-                        employee_rest(emp, 15);
-                }
-            }
-
-            market_simulate_all(t, w, results);
-
-            for (j = 0; j < t->tavern_count; j++)
-                tavern_post_market(&t->taverns[j], &results[j]);
-
-            cats_tick(&t->cats, &w->log);
-            cats_visit_taverns(k, t, w);
-
-            /* Whether a fight/vomit/steal event fires today is driven by
-               who actually showed up at each tavern. The player's tavern
-               surfaces an interactive prompt; rival taverns resolve
-               automatically. */
-            for (j = 0; j < t->tavern_count; j++)
-                evaluate_customer_events(k, t, w, j, &results[j]);
-
-            if (is_player_town) {
-                log_daily_summary(t, w, results);
-                for (d = 0; d < DRINK_COUNT; d++)
-                    sales_today += results[t->player_tavern_id].sales[d];
-            }
+            sales_today += simulate_town_day(t, k, w, is_player_town);
         }
     }
 
@@ -585,4 +602,108 @@ int simulate_day(World *w)
     w->day++;
 
     return sales_today;
+}
+
+/* fresh tavern with default starting stats, supplied by merchant_id */
+static Tavern make_starter_tavern(int day, int merchant_id, const Merchant *m)
+{
+    Tavern b = {0};
+    b.money = 700.0f;
+    b.drinks[DRINK_ALE].price = 5.0f;
+    b.drinks[DRINK_WINE_APPLE].price = 120.0f;
+    b.drinks[DRINK_WINE_GRAPE].price = 120.0f;
+    b.drinks[DRINK_ALE].inventory.amount = 10;
+    b.drinks[DRINK_WINE_APPLE].inventory.amount = 2;
+    b.drinks[DRINK_WINE_GRAPE].inventory.amount = 2;
+    b.last_drink_price[DRINK_ALE] = 1.0f;
+    b.last_drink_price[DRINK_WINE_APPLE] = 1.0f;
+    b.last_drink_price[DRINK_WINE_GRAPE] = 1.0f;
+    b.fruits[FRUIT_APPLE].inventory.expiration_date = 30;
+    b.fruits[FRUIT_GRAPE].inventory.expiration_date = 30;
+    b.fruits[FRUIT_APPLE].inventory.amount = 1;
+    b.fruits[FRUIT_GRAPE].inventory.amount = 1;
+    b.foods[FOOD_BREAD].price = 3.0f;
+    b.foods[FOOD_BREAD].inventory.amount = 5;
+    b.foods[FOOD_BREAD].inventory.expiration_date = 30;
+    b.foods[FOOD_STEW].price = 7.5f;
+    b.foods[FOOD_STEW].inventory.amount = 3;
+    b.foods[FOOD_STEW].inventory.expiration_date = 30;
+    b.quality_actual = m->quality;
+    b.quality_perceived = 0.5f;
+    b.rumor = 0.5f;
+    b.consistency = 1.0f;
+    b.handsomeness = 0.6f;
+    b.reputation = 0.5f;
+    b.supplier_id = merchant_id;
+    b.last_pathway_clean_day = 0;
+    b.rent.pay_period = 30;
+    b.rent.next_payment_day = day + b.rent.pay_period;
+    b.rent.rent_amount = 1500;
+    b.rent.base_rent = 1500;
+    b.rent.next_wage_day = day + b.rent.pay_period;
+    b.employee_count = 0;
+    b.tavern_size = 1;
+    return b;
+}
+
+void init_new_game(World *w)
+{
+    Kingdom kingdom = {0};
+    Town town = {0};
+    Merchant m_init = {0};
+    Merchant m_rival = {0};
+    Tavern b_init;
+    Tavern rival;
+    int merchant_id;
+    int rival_merchant_id;
+    int i;
+
+    w->day = 0;
+
+    world_kingdoms_init(w, MAX_KINGDOMS);
+
+    kingdom.inflation_rate = 1.0f;
+    kingdom.money_supply_prev = 0.0f;
+    kingdom_towns_init(&kingdom, MAX_TOWNS);
+
+    town.last_advertised_day = 0;
+    town_merchants_init(&town, MAX_MERCHANTS);
+    town_taverns_init(&town, MAX_TAVERNS);
+    town_cats_init(&town, ANIMALS_DEFAULT_CAPACITY);
+    /* seed small starter colony since cats_tick only reproduces existing pairs
+     */
+    for (i = 0; i < 4; i++)
+        cat_spawn(&town.cats);
+    population_init(&town.population, 100000);
+    for (i = 0; i < 150; i++)
+        citizen_spawn(&town.population);
+
+    m_init.drink_price[DRINK_ALE] = 5.0f;
+    m_init.drink_price[DRINK_WINE_APPLE] = 90.0f;
+    m_init.drink_price[DRINK_WINE_GRAPE] = 90.0f;
+    m_init.quality = 0.7f;
+    m_init.instability = 0.2f;
+    merchant_init_default_stock(&m_init);
+    merchant_id = town_add_merchant(&town, m_init);
+
+    b_init = make_starter_tavern(w->day, merchant_id, &m_init);
+    town.player_tavern_id = town_add_tavern(&town, b_init);
+
+    /* rival supplier with different quality and pricing */
+    m_rival.drink_price[DRINK_ALE] = 4.5f;
+    m_rival.drink_price[DRINK_WINE_APPLE] = 90.0f;
+    m_rival.drink_price[DRINK_WINE_GRAPE] = 90.0f;
+    m_rival.quality = 0.6f;
+    m_rival.instability = 0.35f;
+    merchant_init_default_stock(&m_rival);
+    rival_merchant_id = town_add_merchant(&town, m_rival);
+
+    rival = make_starter_tavern(w->day, rival_merchant_id, &m_rival);
+    rival.money = 500.0f;
+    town_add_tavern(&town, rival);
+
+    town_relink_suppliers(&town);
+
+    kingdom.player_town_id = kingdom_add_town(&kingdom, town);
+    w->player_kingdom_id = world_add_kingdom(w, kingdom);
 }
