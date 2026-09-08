@@ -19,4 +19,8 @@
    if it fit. */
 int tavern_snprintf(char *dst, size_t size, const char *fmt, ...);
 
+/* platform console quirks and resize hooks */
+void compat_console_init(void);
+void compat_handle_resize(int ch);
+
 #endif /* COMPAT_H */

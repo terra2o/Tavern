@@ -152,4 +152,7 @@ void process_payment(Kingdom *k, World *w, Tavern *b, int current_day);
    drinks sold. */
 int simulate_day(World *w);
 
+/* bootstrap initial world, player town/tavern, rivals, and merchants */
+void init_new_game(World *w);
+
 #endif /* SIM_H */
