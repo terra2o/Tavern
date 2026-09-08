@@ -561,8 +561,7 @@ int main(void)
                         w.day, sales, b->money,
                         b->drinks[DRINK_ALE].inventory.amount, total_wine,
                         b->foods[FOOD_BREAD].inventory.amount,
-                        b->foods[FOOD_STEW].inventory.amount,
-                        b->reputation);
+                        b->foods[FOOD_STEW].inventory.amount, b->reputation);
         log_message(&w.log, buf_l, LOG_IMPORTANT);
     }
 
