@@ -32,7 +32,8 @@ typedef enum {
     UI_MODE_COLLECT,
     UI_MODE_WINE_VARIETY,
     UI_MODE_HIRE_ROLE,
-    UI_MODE_DETAIL
+    UI_MODE_DETAIL,
+    UI_MODE_FIRE_EMPLOYEE,
 } UiMode;
 
 /* Describes the number-input prompt an action needs before it can
@@ -78,6 +79,7 @@ typedef struct {
     WarRefugeesState war_refugees;
     WarAttackState war_attack;
     SupplierState supplier;
+    int selected_employee;
     CollectState collect;
     WineType pending_wine;
     char wine_prompt_buf[64];
