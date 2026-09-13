@@ -14,6 +14,7 @@ It Features:
 - Price management
 - Reputation management
 - Quality management
+- Employee management
 - Ale and Wine
 - Rumors
 - Consistency 
