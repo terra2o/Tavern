@@ -83,6 +83,7 @@ void ui_state_init(UiState *state)
     state->steal.resolved = 0;
     state->cat_trouble.resolved = 0;
     state->supplier.selected = 0;
+    state->selected_employee = 0;
     memset(&state->collect, 0, sizeof(state->collect));
     state->pending_wine = WINE_APPLE;
     memset(state->wine_prompt_buf, 0, sizeof(state->wine_prompt_buf));
@@ -577,11 +578,20 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
     /* --- OVERVIEW BOARD --- */
     if (ui_state->mode == UI_MODE_DETAIL) {
         char line[128];
+        int max_visible = 8;
+        int start_idx = 0;
+        int end_idx = 0;
+
         total_wages = 0.0f;
+        for (employee_idx = 0; employee_idx < b->employee_count;
+             employee_idx++) {
+            total_wages +=
+                (float)b->employees[employee_idx].wage_cents / 100.0f;
+        }
 
         string_array_count = 0;
         PUSH_STR(string_array, string_array_count,
-                 "ESC: Close | 1-8: Toggle employee duty");
+                 "ESC: Close | UP/DOWN: Select | ENTER: Duty | F: Fire");
         PUSH_STR(
             string_array, string_array_count,
             "------------------------------------------------------------");
@@ -607,22 +617,47 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
         PUSH_STR(
             string_array, string_array_count,
             "------------------------------------------------------------");
-        PUSH_STR(string_array, string_array_count, "[EMPLOYEES]");
         if (b->employee_count == 0) {
+            PUSH_STR(string_array, string_array_count, "[EMPLOYEES]");
             PUSH_STR(string_array, string_array_count,
                      "  No employees hired yet. (Press P to hire)");
         } else {
+            if (b->employee_count > max_visible) {
+                start_idx = ui_state->selected_employee - (max_visible / 2);
+                if (start_idx + max_visible > b->employee_count)
+                    start_idx = b->employee_count - max_visible;
+                if (start_idx < 0)
+                    start_idx = 0;
+
+                end_idx = start_idx + max_visible;
+                if (end_idx > b->employee_count)
+                    end_idx = b->employee_count;
+
+                tavern_snprintf(
+                    line, sizeof(line), "[EMPLOYEES] (%d/%d)%s",
+                    ui_state->selected_employee + 1, b->employee_count,
+                    (start_idx > 0 && end_idx < b->employee_count) ? " ^ v"
+                    : (start_idx > 0)                              ? " ^"
+                    : (end_idx < b->employee_count)                ? " v"
+                                                                   : "");
+                PUSH_STR(string_array, string_array_count, line);
+            } else {
+                start_idx = 0;
+                end_idx = b->employee_count;
+                PUSH_STR(string_array, string_array_count, "[EMPLOYEES]");
+            }
+
             PUSH_STR(string_array, string_array_count,
-                     "  # Role       Wage   Nrg Mrl Sp/Sk/St  Status");
-            for (employee_idx = 0;
-                 employee_idx < b->employee_count && employee_idx < 8;
+                     "   # Role       Wage   Nrg Mrl Sp/Sk/St  Status");
+            for (employee_idx = start_idx; employee_idx < end_idx;
                  employee_idx++) {
                 const Employee *emp = &b->employees[employee_idx];
                 float wage = (float)emp->wage_cents / 100.0f;
-                total_wages += wage;
+                char marker =
+                    (employee_idx == ui_state->selected_employee) ? '>' : ' ';
                 tavern_snprintf(
                     line, sizeof(line),
-                    "  %d %-9s  $%5.2f %3d %3d %2d/%2d/%2d  %s",
+                    "%c %2d %-9s  $%5.2f %3d %3d %2d/%2d/%2d  %s", marker,
                     employee_idx + 1, ROLE_NAMES[emp->role], wage, emp->energy,
                     emp->stats.morale, emp->stats.speed, emp->stats.skill,
                     emp->stats.stamina, emp->on_duty ? "On Duty" : "Resting");
@@ -1073,18 +1108,48 @@ static void ui_handle_hire_role(int ch, UiState *ui_state, Tavern *b,
     ui_state->mode = UI_MODE_NORMAL;
 }
 
-/* handles the overview board: ESC to close, 1-8 to toggle employee duty */
-/* TODO: add firing employee option */
-static void ui_handle_detail(int ch, UiState *ui_state, Tavern *b)
+static void ui_handle_detail(int ch, UiState *ui_state, Tavern *b, World *w)
 {
+    Employee *emp;
+    char msg[128];
+
     if (ch == 27) {
         ui_state->mode = UI_MODE_NORMAL;
         return;
     }
 
-    if (ch >= '1' && ch <= '8') {
+    if (b->employee_count <= 0)
+        return;
+
+    /* clamp cursor to bounds */
+    if (ui_state->selected_employee >= b->employee_count)
+        ui_state->selected_employee = b->employee_count - 1;
+    if (ui_state->selected_employee < 0)
+        ui_state->selected_employee = 0;
+
+    if (ch == KEY_UP || ch == 'k' || ch == 'K') {
+        if (ui_state->selected_employee > 0)
+            ui_state->selected_employee--;
+    } else if (ch == KEY_DOWN || ch == 'j' || ch == 'J') {
+        if (ui_state->selected_employee < b->employee_count - 1)
+            ui_state->selected_employee++;
+    } else if (ch == '\n' || ch == '\r' || ch == ' ' || ch == 't' ||
+               ch == 'T') {
+        emp = &b->employees[ui_state->selected_employee];
+        emp->on_duty = !emp->on_duty;
+    } else if (ch == 'f' || ch == 'F') {
+        emp = &b->employees[ui_state->selected_employee];
+        tavern_snprintf(msg, sizeof(msg), "Fired employee #%u (%s).", emp->id,
+                        ROLE_NAMES[emp->role]);
+        employee_fire(b, emp);
+        log_message(&w->log, msg, LOG_INFO);
+        if (ui_state->selected_employee >= b->employee_count &&
+            b->employee_count > 0)
+            ui_state->selected_employee = b->employee_count - 1;
+    } else if (ch >= '1' && ch <= '9') {
         int idx = ch - '1';
         if (idx < b->employee_count) {
+            ui_state->selected_employee = idx;
             b->employees[idx].on_duty = !b->employees[idx].on_duty;
         }
     }
@@ -1131,7 +1196,7 @@ void ui_handle_input(int ch, UiState *ui_state, Tavern *b, Town *t, Kingdom *k,
     } else if (ui_state->mode == UI_MODE_HIRE_ROLE) {
         ui_handle_hire_role(ch, ui_state, b, k, w);
     } else if (ui_state->mode == UI_MODE_DETAIL) {
-        ui_handle_detail(ch, ui_state, b);
+        ui_handle_detail(ch, ui_state, b, w);
     } else if (ui_state->mode == UI_MODE_COLLECT) {
         collect_handle_input(ch, &ui_state->collect, b);
     } else if (ui_state->mode == UI_MODE_NORMAL) {
