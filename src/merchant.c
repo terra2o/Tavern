@@ -9,6 +9,7 @@
  */
 
 #include "merchant.h"
+#include "religion.h"
 #include "sim.h"
 #include "sim_random.h"
 
@@ -77,14 +78,26 @@ int merchant_available_stock(const Merchant *m, DrinkType d)
     return (int)m->stock[d];
 }
 
-float merchant_quote_price(const Merchant *m, int tavern_id, DrinkType d)
+float merchant_quote_price(const Merchant *m, struct Tavern *b, DrinkType d)
 {
     float favor;
+    float price;
 
-    favor = (tavern_id >= 0 && tavern_id < MAX_TAVERNS)
-                ? m->tavern_favor[tavern_id]
+    favor = (b != NULL && b->id >= 0 && b->id < MAX_TAVERNS)
+                ? m->tavern_favor[b->id]
                 : 0.0f;
-    return m->drink_price[d] * (1.0f - favor * FAVOR_DISCOUNT_MAX);
+
+    price = m->drink_price[d] * (1.0f - favor * FAVOR_DISCOUNT_MAX);
+
+    if (b != NULL && b->religion_id != -1) {
+        ModifierTarget t =
+            (d == DRINK_ALE) ? MOD_MERCHANT_PRICE_ALE : MOD_MERCHANT_PRICE_WINE;
+        price = modifier_get_total(t, g_religions[b->religion_id].modifiers,
+                                   g_religions[b->religion_id].modifier_count,
+                                   price);
+    }
+
+    return price;
 }
 
 void merchant_record_purchase(Merchant *m, int tavern_id, DrinkType d, int qty)

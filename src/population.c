@@ -10,6 +10,7 @@
 
 #include "population.h"
 #include "log.h"
+#include "religion.h"
 #include "sim.h" /* for the CLAMP macro */
 #include "sim_random.h"
 #include <stdio.h>
@@ -101,6 +102,8 @@ void citizen_spawn(Population *pop)
     c->homeless = 0;
     c->alive = 1;
     c->anger = 0.0f;
+    c->religion_id = -1;
+    c->favour = 0.0f;
 
     pop->count++;
     pop->alive_count++;
@@ -145,6 +148,14 @@ void population_tick(Population *pop, MessageLog *log)
         c->wealth += c->income;
 
         c->anger = CLAMP(c->anger - ANGER_DECAY_PER_DAY, 0.0f, 1.0f);
+
+        if (frand() < 0.1f) { /* 10% chance to talk to someone each day */
+            int talk_idx = rand() % pop->count;
+            Citizen *other = &pop->citizens[talk_idx];
+            if (other->alive && other != c) {
+                citizen_talk_religion(c, other);
+            }
+        }
 
         if (c->addiction > HEALTHY_ADDICTION_THRESHOLD)
             c->health =

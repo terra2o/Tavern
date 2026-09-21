@@ -30,6 +30,10 @@ typedef struct Kingdom {
     int town_count;
     int town_capacity;
     int player_town_id; /* only meaningful when this is the player's kingdom */
+
+    int *ally_kingdoms; /* by id */
+    int relationship_points[MAX_KINGDOMS];
+    int religion_id; /* -1 for no religion */
 } Kingdom;
 
 void kingdom_towns_init(Kingdom *k, int capacity);

@@ -21,6 +21,7 @@
 #include "kingdom.h"
 #include "log.h"
 #include "merchant.h"
+#include "religion.h"
 #include "town.h"
 #include "wine.h"
 #include <math.h>
@@ -88,6 +89,7 @@ typedef struct Tavern {
     Merchant *supplier;
     int is_water_bowl_outside; /* bool */
     int last_water_bowl_day;
+    int religion_id; /* -1 if no religion */
 } Tavern;
 
 typedef struct {
@@ -119,8 +121,9 @@ typedef enum {
     ACT_MAKE_WINE,
     ACT_HIRE_EMPLOYEES,
     ACT_EXPAND_TAVERN,
-    ACT_WATER_BOWL_OUTSIDE /* makes cats drink it, making their thirst go away
-                            */
+    ACT_WATER_BOWL_OUTSIDE, /* makes cats drink it, making their thirst go away
+                             */
+    ACT_SET_RELIGION
 } Action;
 
 /* Compute reputation from quality, rumor, consistency, handsomeness */

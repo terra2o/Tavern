@@ -15,6 +15,8 @@
 #include "game_state.h"
 #include <math.h>
 
+struct Tavern;
+
 typedef struct Merchant {
     float drink_price[DRINK_COUNT];
     float quality;
@@ -40,8 +42,8 @@ void update_merchant(Merchant *m, float inflation_rate, float inflation_growth);
 /* Units of drink d this merchant can currently sell. */
 int merchant_available_stock(const Merchant *m, DrinkType d);
 
-/* Price tavern_id actually pays for drink d, after its favor discount. */
-float merchant_quote_price(const Merchant *m, int tavern_id, DrinkType d);
+/* Price tavern actually pays for drink d, after its favor discount. */
+float merchant_quote_price(const Merchant *m, struct Tavern *b, DrinkType d);
 
 /* Records a completed purchase: drains stock[d] by qty and grows
    tavern_favor[tavern_id]. Call after a purchase succeeds. */

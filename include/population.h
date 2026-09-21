@@ -28,6 +28,8 @@ typedef struct Citizen {
     int homeless;                        /* bool */
     int alive;                           /* bool */
     float anger;                         /* 0.0 to 1.0 */
+    int religion_id;                     /* -1 if no religion */
+    float favour;                        /* opinion of player tavern */
 } Citizen;
 
 typedef struct Population {

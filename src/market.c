@@ -11,6 +11,7 @@
 #include "market.h"
 #include "advertisement.h"
 #include "pathway.h"
+#include "religion.h"
 #include "sim.h"
 #include "sim_random.h"
 #include <stdio.h>
@@ -109,6 +110,13 @@ static int citizen_pick_tavern(Citizen *c, Town *town, int current_day,
             if (t == c->favorite_tavern_id)
                 score += c->loyalty * FAVORITE_TAVERN_BONUS;
 
+            if (b->religion_id != -1) {
+                if (c->religion_id == b->religion_id)
+                    score *= 1.5f; /* bonus for same religion */
+                else if (c->religion_id != -1)
+                    score *= 0.5f; /* penalty for different religion */
+            }
+
             if (score > best_score) {
                 best_score = score;
                 best_tavern = t;
@@ -130,10 +138,18 @@ static void citizen_visit(Citizen *c, Town *town, int tavern_idx, int drink,
     Tavern *b = &town->taverns[tavern_idx];
 
     b->drinks[drink].inventory.amount--;
-    b->money += b->drinks[drink].price;
+
+    float actual_price = b->drinks[drink].price;
+    if (b->religion_id != -1) {
+        actual_price = modifier_get_total(
+            MOD_MERCHANT_SELL_PRICE, g_religions[b->religion_id].modifiers,
+            g_religions[b->religion_id].modifier_count, actual_price);
+    }
+
+    b->money += actual_price;
 
     r->sales[drink]++;
-    r->revenue += b->drinks[drink].price;
+    r->revenue += actual_price;
 
     c->last_drink_day = current_day;
     c->thirst = CLAMP(c->thirst - THIRST_RESET_ON_VISIT, 0.0f, 1.0f);
@@ -198,6 +214,7 @@ void market_simulate_all(Town *town, World *w, DayResult *results)
     int deliveries_done[MAX_TAVERNS] = {0};
     int lost_to_bartender[MAX_TAVERNS] = {0};
     int lost_to_waiter[MAX_TAVERNS] = {0};
+    /* TODO: refactor this. unreadable */
     int t;
     int d;
     int f;

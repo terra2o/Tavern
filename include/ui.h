@@ -34,6 +34,7 @@ typedef enum {
     UI_MODE_HIRE_ROLE,
     UI_MODE_DETAIL,
     UI_MODE_FIRE_EMPLOYEE,
+    UI_MODE_RELIGION,
 } UiMode;
 
 /* Describes the number-input prompt an action needs before it can

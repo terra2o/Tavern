@@ -9,6 +9,7 @@
  */
 
 #include "event.h"
+#include "religion.h"
 #include "sim.h"
 #include "sim_random.h"
 #include <stdio.h>
@@ -60,7 +61,11 @@ void random_war_event(Kingdom *k, World *w)
 
 int event_fight_break_up(Tavern *b, World *w)
 {
-    if (rand() % 2 == 0) {
+    int win = (rand() % 2 == 0);
+    if (b->religion_id == 3) /* Moon religion never loses fights */
+        win = 1;
+
+    if (win) {
         b->reputation += 0.30f;
         b->rumor += 0.30f;
         b->reputation = CLAMP(b->reputation, 0.0f, 1.0f);
@@ -458,6 +463,13 @@ void evaluate_customer_events(Kingdom *k, Town *t, World *w, int tavern_id,
     Tavern *b = &t->taverns[tavern_id];
     float fight_chance = CLAMP(day->rowdy_visitors * FIGHT_CHANCE_PER_ROWDY,
                                0.0f, FIGHT_CHANCE_CAP);
+
+    if (b->religion_id != -1) {
+        fight_chance = modifier_get_total(
+            MOD_FIGHT_CHANCE, g_religions[b->religion_id].modifiers,
+            g_religions[b->religion_id].modifier_count, fight_chance);
+        fight_chance = CLAMP(fight_chance, 0.0f, 1.0f);
+    }
     float vomit_chance = CLAMP(day->rowdy_visitors * VOMIT_CHANCE_PER_ROWDY,
                                0.0f, VOMIT_CHANCE_CAP);
     float steal_chance =
@@ -472,6 +484,16 @@ void evaluate_customer_events(Kingdom *k, Town *t, World *w, int tavern_id,
             return;
 
         if (fight_chance > 0.0f && frand() < fight_chance) {
+            /* Simulate a fight between two random citizens */
+            if (t->population.alive_count > 1) {
+                int c1 = rand() % t->population.count;
+                int c2 = rand() % t->population.count;
+                if (t->population.citizens[c1].alive &&
+                    t->population.citizens[c2].alive) {
+                    religion_fight_convert(&t->population.citizens[c1],
+                                           &t->population.citizens[c2]);
+                }
+            }
             event_fight(w);
         } else if (vomit_chance > 0.0f && frand() < vomit_chance) {
             event_vomit(w);
@@ -482,6 +504,16 @@ void evaluate_customer_events(Kingdom *k, Town *t, World *w, int tavern_id,
     }
 
     if (fight_chance > 0.0f && frand() < fight_chance) {
+        /* Simulate a fight between two random citizens */
+        if (t->population.alive_count > 1) {
+            int c1 = rand() % t->population.count;
+            int c2 = rand() % t->population.count;
+            if (t->population.citizens[c1].alive &&
+                t->population.citizens[c2].alive) {
+                religion_fight_convert(&t->population.citizens[c1],
+                                       &t->population.citizens[c2]);
+            }
+        }
         ai_handle_fight(b, w, tavern_id);
     } else if (vomit_chance > 0.0f && frand() < vomit_chance) {
         ai_handle_vomit(b, w, tavern_id);

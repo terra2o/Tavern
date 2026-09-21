@@ -39,7 +39,6 @@ int tavern_snprintf(char *dst, size_t size, const char *fmt, ...)
     return (int)len;
 }
 
-
 #ifdef _WIN32
 #include <windows.h>
 
@@ -87,7 +86,8 @@ static void windows_shrink_console_font(void)
     CloseHandle(con);
 }
 
-/* keep screen buffer sized to largest console window size to avoid conhost glitches */
+/* keep screen buffer sized to largest console window size to avoid conhost
+ * glitches */
 static void windows_grow_console_buffer(void)
 {
     HANDLE con;

@@ -17,6 +17,7 @@
 #include "event.h"
 #include "game_state.h"
 #include "log.h"
+#include "religion.h"
 #include "ui.h"
 
 #define COLOR_MONEY 1
@@ -318,6 +319,18 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
              avg_addiction * 100.0f);
     mvprintw(++left_panel_y, 2, "Town anger: %.0f%%", avg_anger * 100.0f);
 
+    {
+        int town_rel = town_get_majority_religion(t);
+        mvprintw(++left_panel_y, 2, "Tavern Rel: %s",
+                 b->religion_id >= 0 ? g_religions[b->religion_id].name
+                                     : "None");
+        mvprintw(left_panel_y, left_col2_x, "Town Rel: %s",
+                 town_rel >= 0 ? g_religions[town_rel].name : "None");
+        mvprintw(++left_panel_y, 2, "Kingdom Rel: %s",
+                 k->religion_id >= 0 ? g_religions[k->religion_id].name
+                                     : "None");
+    }
+
     if (k->at_war) {
         attron(A_BOLD | COLOR_PAIR(COLOR_WARNING));
         if (k->our_kingdom_attack)
@@ -351,7 +364,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
     mvprintw(4, right_start + 2, "5 - Advertise");
     mvprintw(4, right_col2_x, "6 - Clean pathway");
     mvprintw(5, right_start + 2, "7 - Buy ale ($%.2f/mug)",
-             merchant_quote_price(b->supplier, b->id, DRINK_ALE));
+             merchant_quote_price(b->supplier, b, DRINK_ALE));
     mvprintw(5, right_col2_x, "8 - Buy wine");
     mvprintw(6, right_start + 2, "W - Adjust ale price");
     mvprintw(6, right_col2_x, "E - Adjust wine price");
@@ -366,6 +379,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
 
     mvprintw(10, right_start + 2, "D - Overview");
     mvprintw(10, right_col2_x, "B - Place water bowl outside");
+    mvprintw(11, right_start + 2, "R - Set Religion");
 
     /* --- BOTTOM LOG AREA (always drawn with scroll_offset support) --- */
     draw_log(&w->log, max_x, max_y, ui_state->log_scroll_offset);
@@ -379,6 +393,7 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
         NumberInputState *ni = &ui_state->number_input;
         int input_y = max_y - 8;
 
+        /* TODO: make this *not* transparent */
         /* Semi-transparent overlay effect using windows */
         attron(A_DIM);
         mvprintw(input_y, 2, "%s", ni->prompt);
@@ -393,6 +408,20 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
         mvprintw(input_y + 3, 2, "Enter number and press ENTER");
         mvprintw(input_y + 4, 2, "Press ESC to cancel");
         mvprintw(input_y + 5, 2, "UP/DOWN: scroll log");
+    }
+
+    if (ui_state->mode == UI_MODE_RELIGION) {
+        int r_y = max_y - 12;
+        attron(A_BOLD);
+        mvprintw(r_y, 2, "=== CHOOSE TAVERN RELIGION ===");
+        attroff(A_BOLD);
+        mvprintw(r_y + 1, 2, "1 - Earth (20%% cheaper wine)");
+        mvprintw(r_y + 2, 2, "2 - Sun (20%% cheaper ale)");
+        mvprintw(r_y + 3, 2, "3 - Rainbow (Sell drinks 20%% higher)");
+        mvprintw(r_y + 4, 2, "4 - Moon (+30%% fights, never lose fights)");
+        mvprintw(r_y + 5, 2, "5 - Discipline (No fights)");
+        mvprintw(r_y + 6, 2, "0 - None (Clear religion)");
+        mvprintw(r_y + 8, 2, "Press 1-5 or 0, or ESC/Q to cancel.");
     }
 
     /* --- FIGHT EVENT OVERLAY --- */
@@ -540,11 +569,11 @@ void draw_ui(Tavern *b, int day, int action_num, int actions_per_day, Town *t,
             for (drink_idx = 0;
                  drink_idx < DRINK_COUNT && off < (int)sizeof(line);
                  drink_idx++) {
-                off += tavern_snprintf(
-                    line + off, sizeof(line) - off, "  %s $%.2f (stock %d)",
-                    DRINK_NAMES[drink_idx],
-                    merchant_quote_price(m, b->id, drink_idx),
-                    merchant_available_stock(m, drink_idx));
+                off += tavern_snprintf(line + off, sizeof(line) - off,
+                                       "  %s $%.2f (stock %d)",
+                                       DRINK_NAMES[drink_idx],
+                                       merchant_quote_price(m, b, drink_idx),
+                                       merchant_available_stock(m, drink_idx));
             }
             if (off < (int)sizeof(line))
                 tavern_snprintf(line + off, sizeof(line) - off, "  favor %.2f",
@@ -1197,6 +1226,35 @@ void ui_handle_input(int ch, UiState *ui_state, Tavern *b, Town *t, Kingdom *k,
         ui_handle_hire_role(ch, ui_state, b, k, w);
     } else if (ui_state->mode == UI_MODE_DETAIL) {
         ui_handle_detail(ch, ui_state, b, w);
+    } else if (ui_state->mode == UI_MODE_RELIGION) {
+        if (ch == '1') {
+            b->religion_id = 0;
+            log_message(&w->log, "Tavern religion set to Earth.", LOG_INFO);
+            ui_state->mode = UI_MODE_NORMAL;
+        } else if (ch == '2') {
+            b->religion_id = 1;
+            log_message(&w->log, "Tavern religion set to Sun.", LOG_INFO);
+            ui_state->mode = UI_MODE_NORMAL;
+        } else if (ch == '3') {
+            b->religion_id = 2;
+            log_message(&w->log, "Tavern religion set to Rainbow.", LOG_INFO);
+            ui_state->mode = UI_MODE_NORMAL;
+        } else if (ch == '4') {
+            b->religion_id = 3;
+            log_message(&w->log, "Tavern religion set to Moon.", LOG_INFO);
+            ui_state->mode = UI_MODE_NORMAL;
+        } else if (ch == '5') {
+            b->religion_id = 4;
+            log_message(&w->log, "Tavern religion set to Discipline.",
+                        LOG_INFO);
+            ui_state->mode = UI_MODE_NORMAL;
+        } else if (ch == '0') {
+            b->religion_id = -1;
+            log_message(&w->log, "Tavern religion set to None.", LOG_INFO);
+            ui_state->mode = UI_MODE_NORMAL;
+        } else if (ch == 27 || ch == 'q' || ch == 'Q') {
+            ui_state->mode = UI_MODE_NORMAL;
+        }
     } else if (ui_state->mode == UI_MODE_COLLECT) {
         collect_handle_input(ch, &ui_state->collect, b);
     } else if (ui_state->mode == UI_MODE_NORMAL) {
@@ -1265,6 +1323,8 @@ static const struct {
     {'x', ACT_EXPAND_TAVERN},
     {'B', ACT_WATER_BOWL_OUTSIDE},
     {'b', ACT_WATER_BOWL_OUTSIDE},
+    {'R', ACT_SET_RELIGION},
+    {'r', ACT_SET_RELIGION},
 };
 
 /* Convert a character to an action (only valid in NORMAL mode) */
@@ -1331,8 +1391,7 @@ void ui_process_action(UiState *ui_state, Tavern *b, Town *t, Kingdom *k,
 
         case ACT_BUY_ALE: {
             int in_stock = merchant_available_stock(b->supplier, DRINK_ALE);
-            float unit_price =
-                merchant_quote_price(b->supplier, b->id, DRINK_ALE);
+            float unit_price = merchant_quote_price(b->supplier, b, DRINK_ALE);
             int want = input_value < in_stock ? input_value : in_stock;
             float cost;
 
@@ -1382,7 +1441,7 @@ void ui_process_action(UiState *ui_state, Tavern *b, Town *t, Kingdom *k,
             DrinkType dt = WINE_TO_DRINK(ui_state->pending_wine);
             const char *name = DRINK_NAMES[dt];
             int in_stock = merchant_available_stock(b->supplier, dt);
-            float unit_price = merchant_quote_price(b->supplier, b->id, dt);
+            float unit_price = merchant_quote_price(b->supplier, b, dt);
             int want = input_value < in_stock ? input_value : in_stock;
             float cost;
 

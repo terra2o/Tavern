@@ -47,7 +47,7 @@ static void write_tavern(FILE *f, int index, const Tavern *b)
                 b->foods[food].inventory.amount,
                 b->foods[food].inventory.expiration_date);
     }
-    fprintf(f, "\n");
+    fprintf(f, ",%d\n", b->religion_id);
 }
 
 static void write_employee(FILE *f, int tavern_index, const Employee *emp)
@@ -141,6 +141,11 @@ static int read_tavern(char *line, Town *t)
                        &b.foods[food].inventory.expiration_date, &n2) != 3)
                 break;
             cursor += n2;
+        }
+        b.religion_id = -1;
+        if (*cursor == ',') {
+            cursor++;
+            sscanf(cursor, "%d", &b.religion_id);
         }
     } else {
         return 0;
@@ -332,8 +337,8 @@ static void write_town(FILE *f, const Town *t)
                 c->last_drink_day, c->favorite_tavern_id);
         for (d = 0; d < DRINK_COUNT; d++)
             fprintf(f, ",%f", c->drink_preference[d]);
-        fprintf(f, ",%f,%f,%d,%d\n", c->health, c->anger, c->homeless,
-                c->alive);
+        fprintf(f, ",%f,%f,%d,%d,%d,%f\n", c->health, c->anger, c->homeless,
+                c->alive, c->religion_id, c->favour);
     }
     fprintf(f, "\n");
 
@@ -553,10 +558,13 @@ int load_game(const char *path, World *w)
                 break;
             cursor++;
 
-            if (sscanf(cursor, "%f,%f,%d,%d", &c.health, &c.anger, &c.homeless,
-                       &c.alive) == 4 &&
-                current_town->population.count <
-                    current_town->population.capacity) {
+            c.religion_id = -1;
+            c.favour = 0.0f;
+            int parsed =
+                sscanf(cursor, "%f,%f,%d,%d,%d,%f", &c.health, &c.anger,
+                       &c.homeless, &c.alive, &c.religion_id, &c.favour);
+            if (parsed >= 4 && current_town->population.count <
+                                   current_town->population.capacity) {
                 current_town->population
                     .citizens[current_town->population.count++] = c;
             }

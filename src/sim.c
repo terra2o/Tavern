@@ -90,7 +90,7 @@ void apply_action(Tavern *b, Action a, Town *t, Kingdom *k, World *w,
         int qty = amount < merchant_available_stock(b->supplier, DRINK_ALE)
                       ? amount
                       : merchant_available_stock(b->supplier, DRINK_ALE);
-        float unit_price = merchant_quote_price(b->supplier, b->id, DRINK_ALE);
+        float unit_price = merchant_quote_price(b->supplier, b, DRINK_ALE);
         b->drinks[DRINK_ALE].inventory.amount += qty;
         b->money -= qty * unit_price;
         tavern_recompute_total_inventory(b);
@@ -164,6 +164,8 @@ void apply_action(Tavern *b, Action a, Town *t, Kingdom *k, World *w,
         b->is_water_bowl_outside = 1;
         b->last_water_bowl_day = w->day;
     }
+    case ACT_SET_RELIGION:
+        break;
     }
 }
 
@@ -244,9 +246,57 @@ static void world_tick(World *w)
 
         inflation_growth = inflation_tick(k);
 
+        /* Update kingdom majority religion */
+        k->religion_id = kingdom_get_majority_religion(k);
+
         for (ti = 0; ti < k->town_count; ti++)
             town_merchants_update(&k->towns[ti], k->inflation_rate,
                                   inflation_growth);
+
+        if (k->at_war && w->day >= k->war_end_day) {
+            k->at_war = 0;
+            if (frand() < 0.5f) { /* They win */
+                int t, c;
+                for (t = 0; t < k->town_count; t++) {
+                    for (c = 0; c < k->towns[t].population.count; c++) {
+                        Citizen *cit = &k->towns[t].population.citizens[c];
+                        if (cit->alive && frand() < 0.3f &&
+                            k->religion_id != -1)
+                            cit->religion_id = k->religion_id;
+                    }
+                }
+            } else { /* They lose */
+                int t, c, new_rel = rand() % RELIGION_COUNT;
+                for (t = 0; t < k->town_count; t++) {
+                    for (c = 0; c < k->towns[t].population.count; c++) {
+                        Citizen *cit = &k->towns[t].population.citizens[c];
+                        if (cit->alive && frand() < 0.3f)
+                            cit->religion_id = new_rel;
+                    }
+                }
+            }
+        }
+    }
+
+    /* Update relationships based on religion */
+    for (ki = 0; ki < w->kingdom_count; ki++) {
+        int kj;
+        Kingdom *k1 = &w->kingdoms[ki];
+        for (kj = ki + 1; kj < w->kingdom_count; kj++) {
+            Kingdom *k2 = &w->kingdoms[kj];
+            if (k1->religion_id != k2->religion_id && k1->religion_id != -1 &&
+                k2->religion_id != -1) {
+                k1->relationship_points[kj] -= 1;
+                k2->relationship_points[ki] -= 1;
+            }
+
+            if (k1->relationship_points[kj] <= -50 && !k1->at_war &&
+                !k2->at_war) {
+                if (frand() < 0.05f) { /* slight chance */
+                    event_war(k1, w);  /* k1 attacks k2 (simplified) */
+                }
+            }
+        }
     }
 
     random_event(w);
@@ -293,16 +343,18 @@ static void tavern_post_market(Tavern *b, const DayResult *day)
 /* Higher is more attractive. Price is normalized against avg_ale_price
    (the pool's average ale price) so it's comparable across merchants
    regardless of ale's raw price scale. */
-static float supplier_score(const Merchant *m, int tavern_id,
-                            float avg_ale_price)
+static float supplier_score(const Merchant *m, Tavern *b, float avg_ale_price)
 {
     float price_ratio =
         avg_ale_price > 0.0f
-            ? merchant_quote_price(m, tavern_id, DRINK_ALE) / avg_ale_price
+            ? merchant_quote_price(m, b, DRINK_ALE) / avg_ale_price
             : 1.0f;
+    float favor = (b && b->id >= 0 && b->id < MAX_TAVERNS)
+                      ? m->tavern_favor[b->id]
+                      : 0.0f;
     return m->quality * AI_SUPPLIER_WEIGHT_QUALITY -
            price_ratio * AI_SUPPLIER_WEIGHT_PRICE +
-           m->tavern_favor[tavern_id] * AI_SUPPLIER_WEIGHT_FAVOR -
+           favor * AI_SUPPLIER_WEIGHT_FAVOR -
            m->instability * AI_SUPPLIER_WEIGHT_RISK;
 }
 
@@ -325,11 +377,11 @@ static void ai_tavern_reconsider_supplier(Tavern *b, Town *t, World *w)
         avg_ale_price += t->merchants[i].drink_price[DRINK_ALE];
     avg_ale_price /= t->merchant_count;
 
-    current_score = supplier_score(b->supplier, b->id, avg_ale_price);
+    current_score = supplier_score(b->supplier, b, avg_ale_price);
     best_id = b->supplier_id;
     best_score = current_score;
     for (i = 0; i < t->merchant_count; i++) {
-        float s = supplier_score(&t->merchants[i], b->id, avg_ale_price);
+        float s = supplier_score(&t->merchants[i], b, avg_ale_price);
         if (s > best_score) {
             best_score = s;
             best_id = i;
@@ -361,8 +413,8 @@ static void ai_tavern_decide(Tavern *b, Town *t, Kingdom *k, World *w)
 
     /* Track supplier cost with a randomized markup instead of a fixed price */
     for (d = 0; d < DRINK_COUNT; d++) {
-        target = merchant_quote_price(b->supplier, b->id, d) *
-                 (1.5f + frand() * 0.5f);
+        target =
+            merchant_quote_price(b->supplier, b, d) * (1.5f + frand() * 0.5f);
         b->drinks[d].price += (target - b->drinks[d].price) * 0.2f;
     }
 
@@ -374,7 +426,7 @@ static void ai_tavern_decide(Tavern *b, Town *t, Kingdom *k, World *w)
         buy = 20;
         if (buy > merchant_available_stock(b->supplier, d))
             buy = merchant_available_stock(b->supplier, d);
-        cost = buy * merchant_quote_price(b->supplier, b->id, d);
+        cost = buy * merchant_quote_price(b->supplier, b, d);
         if (buy > 0 && b->money >= cost) {
             b->drinks[d].inventory.amount += buy;
             b->money -= cost;
@@ -643,6 +695,7 @@ static Tavern make_starter_tavern(int day, int merchant_id, const Merchant *m)
     b.rent.next_wage_day = day + b.rent.pay_period;
     b.employee_count = 0;
     b.tavern_size = 1;
+    b.religion_id = -1;
     return b;
 }
 
@@ -675,9 +728,12 @@ void init_new_game(World *w)
     for (i = 0; i < 4; i++)
         cat_spawn(&town.cats);
     population_init(&town.population, 100000);
-    for (i = 0; i < 150; i++)
+    for (i = 0; i < 150; i++) {
         citizen_spawn(&town.population);
-
+        if (i < RELIGION_COUNT) {
+            town.population.citizens[i].religion_id = i;
+        }
+    }
     m_init.drink_price[DRINK_ALE] = 5.0f;
     m_init.drink_price[DRINK_WINE_APPLE] = 90.0f;
     m_init.drink_price[DRINK_WINE_GRAPE] = 90.0f;
