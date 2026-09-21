@@ -12,6 +12,7 @@
 #include "include/event.h"
 #include "include/game_state.h"
 #include "include/log.h"
+#include "include/religion.h"
 #include "include/save.h"
 #include "include/sim.h"
 #include "include/ui.h"
@@ -82,6 +83,11 @@ static int handle_normal_action(int ch, Tavern *b, Town *t, Kingdom *k,
         return -1;
     if (choice == (Action)-2)
         return 0;
+
+    if (choice == ACT_SET_RELIGION) {
+        ui_state->mode = UI_MODE_RELIGION;
+        return 0;
+    }
 
     if (choice == ACT_BUY_WINE || choice == ACT_ADJUST_WINE_PRICE) {
         ui_state->pending_action = choice;
@@ -268,6 +274,7 @@ int main(void)
     char pool_buf[64];
 
     srand((unsigned int)time(NULL));
+    religion_init_all();
 
     if (!load_game(SAVE_PATH, &w)) {
         init_new_game(&w);
