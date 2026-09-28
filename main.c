@@ -234,10 +234,13 @@ static void handle_pending_events(Tavern *b, Town *t, Kingdom *k, World *w,
 static void run_end_of_day(Tavern *b, Town *t, Kingdom *k, World *w,
                            UiState *ui_state)
 {
+    char save_path[512];
     int actions_per_day = tavern_actions_per_day(b);
     int sales = simulate_day(w);
     int total_wine;
     char buf_l[256];
+
+    compat_get_save_path(save_path, sizeof(save_path));
 
     if (k->at_war && w->pending_event == EVENT_NONE)
         random_war_event(k, w);
@@ -249,7 +252,7 @@ static void run_end_of_day(Tavern *b, Town *t, Kingdom *k, World *w,
     }
 
     handle_pending_events(b, t, k, w, ui_state, actions_per_day);
-    save_game(SAVE_PATH, w);
+    save_game(save_path, w);
 
     total_wine = b->drinks[DRINK_WINE_APPLE].inventory.amount +
                  b->drinks[DRINK_WINE_GRAPE].inventory.amount;
@@ -272,13 +275,16 @@ int main(void)
     UiState ui_state;
     char version[64];
     char pool_buf[64];
+    char save_path[512];
 
     srand((unsigned int)time(NULL));
     religion_init_all();
+    
+    compat_get_save_path(save_path, sizeof(save_path));
 
-    if (!load_game(SAVE_PATH, &w)) {
+    if (!load_game(save_path, &w)) {
         init_new_game(&w);
-        save_game(SAVE_PATH, &w);
+        save_game(save_path, &w);
     }
 
     k = world_player_kingdom(&w);

@@ -12,6 +12,7 @@
 #include <curses.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* plenty for the status/log lines this is used for */
@@ -184,4 +185,48 @@ void compat_handle_resize(int ch)
     if (ch == KEY_RESIZE)
         resize_term(0, 0);
 #endif
+}
+
+#if !defined(_WIN32) && !defined(__MSDOS__)
+#include <sys/stat.h>
+#endif
+
+void compat_get_save_path(char *dest, size_t size)
+{
+#if defined(__MSDOS__)
+    const char *filename = "TAVERN.SAV";
+#else
+    const char *filename = "tavernsavefile.txt";
+#endif
+    const char *env;
+    char dir_path[512];
+
+#if defined(_WIN32)
+    env = getenv("APPDATA");
+    if (env) {
+        tavern_snprintf(dir_path, sizeof(dir_path), "%s\\Tavern", env);
+        CreateDirectoryA(dir_path, NULL);
+        tavern_snprintf(dest, size, "%s\\%s", dir_path, filename);
+        return;
+    }
+#elif defined(__MSDOS__)
+    /* DOS saves in the current directory */
+#else
+    env = getenv("XDG_CONFIG_HOME");
+    if (env) {
+        tavern_snprintf(dir_path, sizeof(dir_path), "%s/Tavern", env);
+        mkdir(dir_path, 0755);
+        tavern_snprintf(dest, size, "%s/%s", dir_path, filename);
+        return;
+    }
+    env = getenv("HOME");
+    if (env) {
+        tavern_snprintf(dir_path, sizeof(dir_path), "%s/.config/Tavern", env);
+        mkdir(dir_path, 0755);
+        tavern_snprintf(dest, size, "%s/%s", dir_path, filename);
+        return;
+    }
+#endif
+
+    tavern_snprintf(dest, size, "%s", filename);
 }

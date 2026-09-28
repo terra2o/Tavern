@@ -23,4 +23,6 @@ int tavern_snprintf(char *dst, size_t size, const char *fmt, ...);
 void compat_console_init(void);
 void compat_handle_resize(int ch);
 
+void compat_get_save_path(char *dest, size_t size);
+
 #endif /* COMPAT_H */
